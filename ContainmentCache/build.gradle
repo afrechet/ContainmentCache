@@ -1,0 +1,16 @@
+repositories {
+	    mavenLocal()
+	    mavenCentral()
+}
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+	compile 'com.google.guava:guava:18.0'
+	compile 'commons-collections:commons-collections:3.2.1'
+	
+	testCompile 'junit:junit:4.11'
+}
