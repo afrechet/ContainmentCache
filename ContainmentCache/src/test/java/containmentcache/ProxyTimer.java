@@ -2,8 +2,11 @@ package containmentcache;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 /**
  * Invocation handler that 
@@ -14,14 +17,12 @@ public class ProxyTimer implements InvocationHandler{
 	
 	private final Object obj;
 	
-	private final Map<Method,Double> times;
-	private final Map<Method,Integer> nums;
+	private final Map<Method,DescriptiveStatistics> stats;
 	
 	public ProxyTimer(Object o)
 	{
 		obj = o;
-		times = new HashMap<Method,Double>();
-		nums = new HashMap<Method,Integer>();
+		stats = new HashMap<Method,DescriptiveStatistics>();
 	}
 	
 	@Override
@@ -35,31 +36,17 @@ public class ProxyTimer implements InvocationHandler{
 		final long end = System.nanoTime();
 		final double duration = (end-start)/(1E6);
 		
-		times.put(method, times.getOrDefault(method, 0.0) + duration);
-		nums.put(method, nums.getOrDefault(method, 0) + 1);
+		
+		final DescriptiveStatistics methodstats = stats.getOrDefault(method,new DescriptiveStatistics());
+		methodstats.addValue(duration);
+		stats.put(method, methodstats);
 		
 		return result;
 	}
 	
-	public Map<String,Double> getAverageTimes()
+	public Map<Method,DescriptiveStatistics> getMethodStats()
 	{
-		assert times.keySet().equals(nums.keySet());
-		
-		final Map<String,Double> averages = new HashMap<String,Double>();
-		
-		for(Method method : times.keySet())
-		{
-			final String name = method.getName();
-			
-			if(averages.containsKey(name))
-			{
-				throw new IllegalStateException("Method with name \""+name+"\" appears twice in timing data.");
-			}
-			
-			averages.put(name, times.get(method) / nums.get(method));		
-		}
-		
-		return averages;
+		return Collections.unmodifiableMap(stats);
 		
 	}
 	

@@ -4,17 +4,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.junit.Test;
 
 /**
@@ -339,15 +341,27 @@ public abstract class AContainmentCacheTests {
 		
 		System.out.println("");
 		
-		System.out.println("Average method runtime (ms):");
-		Map<String,Double> averageTimes = timer.getAverageTimes();
-		
-		List<String> performanceKeys = new LinkedList<String>(averageTimes.keySet());
-		Collections.sort(performanceKeys);
-		for(String key : performanceKeys)
+		System.out.println("Runtime (ms) statistics:");
+		System.out.printf("%-30s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n","Method","Mean","StdDev","Min","Q25","Median","Q75","Max");
+		final Map<Method,DescriptiveStatistics> stats = timer.getMethodStats();
+		for(Method method : stats.keySet())
 		{
-			System.out.printf("\"%s\" = %.3f\n",key,averageTimes.get(key));
-		}	
+			final DescriptiveStatistics stat = stats.get(method);
+			
+			System.out.printf("%-30s %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f\n",
+					"\""+method.getName()+"\"",
+					stat.getMean(),
+					stat.getStandardDeviation(),
+					stat.getMin(),
+					stat.getPercentile(25),
+					stat.getPercentile(50),
+					stat.getPercentile(75),
+					stat.getMax());
+		}
+		
+		
+		
+		
 	}
 	
 

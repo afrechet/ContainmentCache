@@ -19,6 +19,7 @@ import containmentcache.IContainmentCache;
  *
  * @param <E>
  */
+//TODO Make thread safe.
 public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	
 	private static final int MAX_ELEMENTS = 2500;
