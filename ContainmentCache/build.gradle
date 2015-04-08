@@ -11,6 +11,7 @@ targetCompatibility = 1.8
 dependencies {
 	compile 'com.google.guava:guava:18.0'
 	compile 'commons-collections:commons-collections:3.2.1'
+	compile 'org.apache.commons:commons-lang3:3.0'
 	
 	testCompile 'junit:junit:4.11'
 }

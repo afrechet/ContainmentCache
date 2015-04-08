@@ -11,20 +11,30 @@ import java.util.Set;
 import containmentcache.ICacheSet;
 import containmentcache.IContainmentCache;
 
-public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
+/**
+ * A recursive implementation of the Unlimited Branching Tree (UBTree) from
+ * Hoffmann, Jörg, and Jana Koehler. "A new method to index and query sets." IJCAI. Vol. 99. 1999.
+ *
+ * @author afrechet
+ *
+ * @param <E>
+ */
+public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	
 	private static final int MAX_ELEMENTS = 2500;
 	
 	private final E ROOT_VALUE = null;
 	
-	final Node<E> fRoot;
+	private final UBTNode<E> fRoot;
+	private int fSize;
 	
 	/**
 	 * Create an empty tree.
 	 */
-	public Tree()
+	public UBTree()
 	{
-		fRoot = new Node<E>(ROOT_VALUE);
+		fRoot = new UBTNode<E>(ROOT_VALUE);
+		fSize = 0;
 	}
 	
 	/**
@@ -56,19 +66,20 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 	@Override
 	public int size()
 	{
-		return size(fRoot);
+		return fSize;
 	}
 	/**
 	 * @param root - a tree node.
 	 * @return the size of the subtree rooted at root (computed recursively).
 	 */
-	private int size(Node<E> root)
+	@Deprecated
+	private int size(UBTNode<E> root)
 	{
 		int size = root.getEOP() ? 1 : 0;
 		
-		for(Entry<E,Node<E>> childEntry : root.getChildren())
+		for(Entry<E,UBTNode<E>> childEntry : root.getChildren())
 		{
-			Node<E> child = childEntry.getValue();
+			UBTNode<E> child = childEntry.getValue();
 			size += size(child);
 		}
 		
@@ -87,7 +98,7 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 * @param root - a tree node. 
 	 * @return true if there is a path from the given root node following nodes with elements from set[s:] (computed recursively).
 	 */
-	private boolean contains(ArrayList<E> set, int s, Node<E> root)
+	private boolean contains(ArrayList<E> set, int s, UBTNode<E> root)
 	{
 		if(s==set.size())
 		{
@@ -96,7 +107,7 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 		else
 		{
 			E first = set.get(s);
-			Node<E> child = root.getChild(first);
+			UBTNode<E> child = root.getChild(first);
 			if(child == null)
 			{
 				return false;
@@ -121,17 +132,21 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 * @param root - a tree node. 
 	 * @return true if, after removal of the set, the visited node has no children (so it should be removed from its parent's children).
 	 */
-	private boolean remove(ArrayList<E> set, int s, Node<E> root)
+	private boolean remove(ArrayList<E> set, int s, UBTNode<E> root)
 	{
 		if(s==set.size())
 		{ 
+			if(root.getEOP())
+			{
+				fSize--;
+			}
 			root.setEOP(false);
 			return root.getChildren().isEmpty();
 		}
 		else
 		{
 			E first = set.get(s);
-			Node<E> child = root.getChild(first);
+			UBTNode<E> child = root.getChild(first);
 			if(child == null)
 			{
 				return !root.getEOP() && root.getChildren().isEmpty();
@@ -160,19 +175,23 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 * @param s - the index in the array list.
 	 * @param root - the node at which to insert.
 	 */
-	private void insert(ArrayList<E> set, int s, Node<E> root)
+	private void insert(ArrayList<E> set, int s, UBTNode<E> root)
 	{
 		if(s == set.size())
 		{
+			if(!root.getEOP())
+			{
+				fSize++;
+			}
 			root.setEOP(true);
 			return;
 		}
 		
 		E first = set.get(s);
-		Node<E> child = root.getChild(first);
+		UBTNode<E> child = root.getChild(first);
 		if(child == null)
 		{
-			child = new Node<E>(first);
+			child = new UBTNode<E>(first);
 			root.addChild(child);
 		}
 		insert(set, s+1, child);
@@ -191,7 +210,7 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 * @param root
 	 * @return
 	 */
-	private Collection<Set<E>> getSubsets(ArrayList<E> set, int s, Node<E> root)
+	private Collection<Set<E>> getSubsets(ArrayList<E> set, int s, UBTNode<E> root)
 	{
 		final Collection<Set<E>> subsets = new LinkedList<Set<E>>();
 		
@@ -208,7 +227,7 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 		for(int i=s;i<set.size();i++)
 		{
 			final E ielement = set.get(i); 
-			final Node<E> ichild = root.getChild(ielement);
+			final UBTNode<E> ichild = root.getChild(ielement);
 			if(ichild != null)
 			{
 				final Collection<Set<E>> isubsets = getSubsets(set,i+1,ichild);
@@ -232,7 +251,7 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 		ArrayList<E> S = getArray(set);
 		return getSupersets(S, 0, fRoot);
 	}
-	private Collection<Set<E>> getSupersets(ArrayList<E> set, int s, Node<E> root)
+	private Collection<Set<E>> getSupersets(ArrayList<E> set, int s, UBTNode<E> root)
 	{
 		final Collection<Set<E>> supersets = new LinkedList<Set<E>>();
 
@@ -256,10 +275,10 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 			first = set.get(s);
 		}
 		
-		for(Entry<E,Node<E>> childEntry : root.getChildren())
+		for(Entry<E,UBTNode<E>> childEntry : root.getChildren())
 		{
 			E childElement = childEntry.getKey();
-			Node<E> child = childEntry.getValue();
+			UBTNode<E> child = childEntry.getValue();
 			
 			final Collection<Set<E>> csupersets;
 			if(first == null || childElement.compareTo(first) < 0)
@@ -293,7 +312,7 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 		ArrayList<E> S = getArray(set);
 		return getNumberSubsets(S,0,fRoot);
 	}
-	private int getNumberSubsets(ArrayList<E> set, int s, Node<E> root)
+	private int getNumberSubsets(ArrayList<E> set, int s, UBTNode<E> root)
 	{
 		int num = 0;
 		
@@ -305,7 +324,7 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 		for(int i=s;i<set.size();i++)
 		{
 			final E ielement = set.get(i); 
-			final Node<E> ichild = root.getChild(ielement);
+			final UBTNode<E> ichild = root.getChild(ielement);
 			if(ichild != null)
 			{
 				int inum = getNumberSubsets(set,i+1,ichild);
@@ -321,7 +340,7 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 		ArrayList<E> S = getArray(set);
 		return getNumberSupersets(S,0,fRoot);
 	}
-	private int getNumberSupersets(ArrayList<E> set, int s, Node<E> root)
+	private int getNumberSupersets(ArrayList<E> set, int s, UBTNode<E> root)
 	{
 		int num = 0;
 
@@ -340,10 +359,10 @@ public class Tree<E extends Comparable<E>> implements IContainmentCache<E>{
 			first = set.get(s);
 		}
 		
-		for(final Entry<E,Node<E>> childEntry : root.getChildren())
+		for(final Entry<E,UBTNode<E>> childEntry : root.getChildren())
 		{
 			final E childElement = childEntry.getKey();
-			final Node<E> child = childEntry.getValue();
+			final UBTNode<E> child = childEntry.getValue();
 			
 			final int cnum;
 			if(first == null || childElement.compareTo(first) < 0)

@@ -6,29 +6,29 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-public class Node<E> {
+public class UBTNode<E> {
 	
 	private boolean fEOP;
 	private final E fElement;
-	private final Map<E,Node<E>> fChildren;
+	private final Map<E,UBTNode<E>> fChildren;
 	
 	/**
 	 * Basic tree node.
 	 * @param element - element contained at the node.
 	 */
-	public Node(E element)
+	public UBTNode(E element)
 	{
 		this.fEOP = false;
 		this.fElement = element;
-		fChildren = new HashMap<E,Node<E>>();
+		fChildren = new HashMap<E,UBTNode<E>>();
 	}
 	
-	public boolean removeChild(Node<E> child)
+	public boolean removeChild(UBTNode<E> child)
 	{
 		return (fChildren.remove(child.getElement())!=null);
 	}
 	
-	public boolean addChild(Node<E> child)
+	public boolean addChild(UBTNode<E> child)
 	{
 		return (fChildren.put(child.fElement, child)!=null);
 	}
@@ -48,12 +48,12 @@ public class Node<E> {
 		return this.fElement;
 	}
 	
-	public Node<E> getChild(E element)
+	public UBTNode<E> getChild(E element)
 	{
 		return fChildren.get(element);
 	}
 	
-	public Set<Entry<E,Node<E>>> getChildren()
+	public Set<Entry<E,UBTNode<E>>> getChildren()
 	{
 		return Collections.unmodifiableSet(fChildren.entrySet());
 	}

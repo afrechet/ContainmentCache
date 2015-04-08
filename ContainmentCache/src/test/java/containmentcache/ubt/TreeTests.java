@@ -5,8 +5,8 @@ import containmentcache.AContainmentCacheTests;
 public class TreeTests extends AContainmentCacheTests{
 
 	@Override
-	protected Tree<Integer> getCache() {
-		return new Tree<Integer>();
+	protected UBTree<Integer> getCache() {
+		return new UBTree<Integer>();
 	}
 
 }

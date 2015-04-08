@@ -4,10 +4,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -23,6 +23,10 @@ import org.junit.Test;
  */
 public abstract class AContainmentCacheTests {
 	
+	/**
+	 * Factory method for the containment cache to be tested.
+	 * @return - containment cache instance to be tested.
+	 */
 	protected abstract IContainmentCache<Integer> getCache();
 	
 	private ICacheSet<Integer> makeSet(int... elements)
@@ -253,25 +257,25 @@ public abstract class AContainmentCacheTests {
 	/**
 	 * Smoke tests.
 	 */
-	private static void addResult(String key, double result, Map<String,Double> perfs, Map<String,Integer> nums)
-	{
-		perfs.put(key, perfs.getOrDefault(key, 0.0)+result);
-		nums.put(key, nums.getOrDefault(key, 0)+1);
-		
-	}
 	@Test
 	public void smokeTest()
 	{
-		Map<String,Double> performances = new HashMap<String,Double>();
-		Map<String,Integer> numsamples = new HashMap<String,Integer>();
+		System.out.println("Smoke tests");
 		
+		//Create cache.
+		final IContainmentCache<Integer> cache = getCache();
+		final ProxyTimer timer = new ProxyTimer(cache);
+		@SuppressWarnings("unchecked")
+		final IContainmentCache<Integer> C = (IContainmentCache<Integer>) Proxy.newProxyInstance(IContainmentCache.class.getClassLoader(), new Class[] {IContainmentCache.class}, timer);
+		
+		//Parameters
 		final long seed = 1;
 		final Random rand = new Random(seed);
-		
-		final IContainmentCache<Integer> C = getCache();
-		
+
 		final int numtests = 500;
 		final int N = 750;
+		
+		
 		final List<Integer> universe = new ArrayList<Integer>();
 		for(int i=0;i<N;i++)
 		{
@@ -295,10 +299,7 @@ public abstract class AContainmentCacheTests {
 				List<Integer> elements = universe.subList(0, rand.nextInt(universe.size()));
 				ICacheSet<Integer> set = new CacheSet<Integer>(new HashSet<Integer>(elements));
 				
-				long s = System.currentTimeMillis();
 				C.add(set);
-				long e = System.currentTimeMillis();
-				addResult("add",e-s,performances,numsamples);
 			}
 			
 			//Test a certain set.
@@ -307,48 +308,29 @@ public abstract class AContainmentCacheTests {
 			ICacheSet<Integer> set = new CacheSet<Integer>(new HashSet<Integer>(elements));
 			
 			//Test addition.
-			long s = System.currentTimeMillis();
 			C.add(set);
-			long e = System.currentTimeMillis();
-			addResult("add",e-s,performances,numsamples);
-			
 			assertTrue(C.contains(set));
 			assertTrue(C.getSubsets(set).contains(set.getElements()));
 			assertTrue(C.getSupersets(set).contains(set.getElements()));
 			int size = C.size();
 			
 			//Test subsets
-			s = System.currentTimeMillis();
 			final Collection<Set<Integer>> subsets = C.getSubsets(set);
-			e = System.currentTimeMillis();
-			addResult("subsets",e-s,performances,numsamples);
 			
 			//Test number subsets
-			s = System.currentTimeMillis();
 			final int numsubsets = C.getNumberSubsets(set);
-			e = System.currentTimeMillis();
-			addResult("num-subsets",e-s,performances,numsamples);
 			assertEquals(subsets.size(), numsubsets);
 			
 			//Test supersets
-			s = System.currentTimeMillis();
 			final Collection<Set<Integer>> supersets = C.getSupersets(set);
-			e = System.currentTimeMillis();
-			addResult("supersets",e-s,performances,numsamples);
 			
 			//Test number supersets
-			s = System.currentTimeMillis();
 			final int numsupersets = C.getNumberSupersets(set);
-			e = System.currentTimeMillis();
-			addResult("num-supersets",e-s,performances,numsamples);
 			assertEquals(numsupersets, supersets.size());
 			
 			
 			//Test removal.
-			s = System.currentTimeMillis();
 			C.remove(set);
-			e = System.currentTimeMillis();
-			addResult("remove",e-s,performances,numsamples);	
 			assertFalse(C.contains(set));
 			assertFalse(C.getSubsets(set).contains(set.getElements()));
 			assertFalse(C.getSupersets(set).contains(set.getElements()));
@@ -357,11 +339,14 @@ public abstract class AContainmentCacheTests {
 		
 		System.out.println("");
 		
-		List<String> performanceKeys = new LinkedList<String>(performances.keySet());
+		System.out.println("Average method runtime (ms):");
+		Map<String,Double> averageTimes = timer.getAverageTimes();
+		
+		List<String> performanceKeys = new LinkedList<String>(averageTimes.keySet());
 		Collections.sort(performanceKeys);
 		for(String key : performanceKeys)
 		{
-			System.out.println("Average time (ms) for \""+key+"\" = "+performances.get(key)/numsamples.get(key));
+			System.out.printf("\"%s\" = %.3f\n",key,averageTimes.get(key));
 		}	
 	}
 	
