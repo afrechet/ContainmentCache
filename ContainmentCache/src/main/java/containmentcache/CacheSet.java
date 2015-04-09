@@ -9,7 +9,7 @@ import java.util.Set;
  * @author afrechet
  * @param <E> - type of elements in cache set entry.
  */
-public class CacheSet<E> implements ICacheSet<E> {
+public class CacheSet<E> implements ICacheSet<E,Object> {
 
 	private final Set<E> fSet;
 	
@@ -18,11 +18,6 @@ public class CacheSet<E> implements ICacheSet<E> {
 		fSet = new HashSet<E>(set);
 	}
 	
-	@Override
-	public int size() {
-		return fSet.size();
-	}
-
 	@Override
 	public Set<E> getElements() {
 		return Collections.unmodifiableSet(fSet);
@@ -58,6 +53,11 @@ public class CacheSet<E> implements ICacheSet<E> {
 		} else if (!fSet.equals(other.fSet))
 			return false;
 		return true;
+	}
+
+	@Override
+	public Object getContent() {
+		throw new UnsupportedOperationException("Simple cache set entry has no content.");
 	}
 	
 	

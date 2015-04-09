@@ -3,6 +3,7 @@ package containmentcache.bitset;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
@@ -10,16 +11,29 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-
 import containmentcache.ICacheSet;
 import containmentcache.IContainmentCache;
 
-public class SimpleBitSetCache<E> implements IContainmentCache<E>{
-
-	private final BiMap<E,Integer> perm;
+/**
+ * A simple bitset containment cache that represents sets as bitsets and uses the integer representation
+ * of these bitsets to limit the number of sub/supersets to search. 
+ * 
+ * Given a query set, we get its bitset representation and corresponding integer number, and then can quickly find
+ * all entries with bitset integer number larger (or smaller) than the query's. This allows us to get a superset of all
+ * supersets (or subsets), which we can filter to exactly get the sets we are looking for.
+ * 
+ * @author afrechet
+ * @param <E> - the elements the sets.
+ * @param <T> - the type of additional content in cache entries.
+ */
+public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
+	
+	//The entries of the data structure, hashed by their bitset representation.
+	private final Map<BitSet,Set<ICacheSet<E,T>>> entries;
+	//The tree of bitset, to organize the sub/superset structure.
 	private final TreeSet<BitSet> tree;
+	//The element permutation to map sets to bitsets.
+	private final Map<E,Integer> perm;
 	
 	public SimpleBitSetCache(Map<E,Integer> permutation)
 	{
@@ -39,7 +53,8 @@ public class SimpleBitSetCache<E> implements IContainmentCache<E>{
 			}
 		}
 		
-		perm = HashBiMap.create(permutation);
+		perm = new HashMap<E,Integer>(permutation);
+		entries = new HashMap<BitSet,Set<ICacheSet<E,T>>>();
 		tree = new TreeSet<BitSet>(new BitSetComparator());
 	}
 	
@@ -50,44 +65,77 @@ public class SimpleBitSetCache<E> implements IContainmentCache<E>{
 			throw new IllegalArgumentException("Cannot create "+this.getClass().getSimpleName()+" with empty universe");
 		}
 		
-		perm = HashBiMap.create(universe.size());
-		
+		perm = new HashMap<E,Integer>(universe.size());
 		int index = 0;
 		for(E element : universe)
 		{
 			perm.put(element, index++);
 		}
 		
+		entries = new HashMap<BitSet,Set<ICacheSet<E,T>>>();
 		tree = new TreeSet<BitSet>(new BitSetComparator());
 	}
 	
 		
 	@Override
-	public void add(ICacheSet<E> set) {
-		tree.add(getBitSet(set.getElements()));
-	}
-
-	@Override
-	public void remove(ICacheSet<E> set) {
-		tree.remove(getBitSet(set.getElements()));	
-	}
-
-	@Override
-	public boolean contains(ICacheSet<E> set) {
-		return tree.contains(getBitSet(set.getElements()));
-	}
-
-	@Override
-	public LinkedList<Set<E>> getSubsets(ICacheSet<E> set) {
+	public void add(ICacheSet<E,T> set) {
+		final BitSet bitset = getBitSet(set.getElements());
 		
-		final LinkedList<Set<E>> subsets = new LinkedList<Set<E>>();
+		final Set<ICacheSet<E,T>> bitsetentries = entries.getOrDefault(bitset, new HashSet<ICacheSet<E,T>>());
+		if(bitsetentries.isEmpty())
+		{
+			tree.add(bitset);
+		}
+		bitsetentries.add(set);
+		entries.put(bitset, bitsetentries);
+	}
+
+	@Override
+	public void remove(ICacheSet<E,T> set) {
+		final BitSet bitset = getBitSet(set.getElements());
+		
+		final Set<ICacheSet<E,T>> bitsetentries = entries.get(bitset);
+		if(bitsetentries != null)
+		{
+			bitsetentries.remove(set);			
+			if(bitsetentries.isEmpty())
+			{
+				tree.remove(bitset);
+				entries.remove(bitset);
+			}
+			else
+			{
+				entries.put(bitset, bitsetentries);
+			}
+		}
+	}
+
+	@Override
+	public boolean contains(ICacheSet<E,T> set) {
+		final BitSet bitset = getBitSet(set.getElements());
+		if(entries.containsKey(bitset))
+		{
+			final Set<ICacheSet<E,T>> bitsetentries = entries.get(bitset);
+			return bitsetentries.contains(set);
+		}
+		else
+		{
+			return false;
+		}
+		
+	}
+
+	@Override
+	public LinkedList<ICacheSet<E,T>> getSubsets(ICacheSet<E,T> set) {
+		
+		final LinkedList<ICacheSet<E,T>> subsets = new LinkedList<ICacheSet<E,T>>();
 		
 		final BitSet bs = getBitSet(set.getElements());
 		for(BitSet smallerbs : tree.headSet(bs, true))
 		{
 			if(isSubsetOrEqualTo(smallerbs, bs))
 			{
-				subsets.add(getSet(smallerbs));
+				subsets.addAll(entries.get(smallerbs));
 			}
 		}
 		
@@ -95,7 +143,7 @@ public class SimpleBitSetCache<E> implements IContainmentCache<E>{
 	}
 
 	@Override
-	public int getNumberSubsets(ICacheSet<E> set) {
+	public int getNumberSubsets(ICacheSet<E,T> set) {
 		int numsubsets = 0;
 		
 		BitSet bs = getBitSet(set.getElements());
@@ -103,7 +151,7 @@ public class SimpleBitSetCache<E> implements IContainmentCache<E>{
 		{
 			if(isSubsetOrEqualTo(smallerbs, bs))
 			{
-				numsubsets ++;
+				numsubsets+=entries.get(smallerbs).size();
 			}
 		}
 		
@@ -111,15 +159,16 @@ public class SimpleBitSetCache<E> implements IContainmentCache<E>{
 	}
 
 	@Override
-	public Collection<Set<E>> getSupersets(ICacheSet<E> set) {
-		final LinkedList<Set<E>> supersets = new LinkedList<Set<E>>();
+	public Collection<ICacheSet<E,T>> getSupersets(ICacheSet<E,T> set) {
+		
+		final LinkedList<ICacheSet<E,T>> supersets = new LinkedList<ICacheSet<E,T>>();
 		
 		final BitSet bs = getBitSet(set.getElements());
 		for(BitSet largerbs : tree.tailSet(bs, true))
 		{
 			if(isSubsetOrEqualTo(bs, largerbs))
 			{
-				supersets.add(getSet(largerbs));
+				supersets.addAll(entries.get(largerbs));
 			}
 		}
 		
@@ -127,7 +176,7 @@ public class SimpleBitSetCache<E> implements IContainmentCache<E>{
 	}
 
 	@Override
-	public int getNumberSupersets(ICacheSet<E> set) {
+	public int getNumberSupersets(ICacheSet<E,T> set) {
 		
 		int numsupersets = 0;	
 		final BitSet bs = getBitSet(set.getElements());
@@ -135,7 +184,7 @@ public class SimpleBitSetCache<E> implements IContainmentCache<E>{
 		{
 			if(isSubsetOrEqualTo(bs, largerbs))
 			{
-				numsupersets++;
+				numsupersets+=entries.get(largerbs).size();
 			}
 		}
 		return numsupersets;
@@ -148,9 +197,9 @@ public class SimpleBitSetCache<E> implements IContainmentCache<E>{
 	
 	/**
 	 * A comparator for bitsets that compares based on the integer values of bitsets.
-	 * @author afrechet
+	 * @author newmanne, afrechet
 	 */
-	private class BitSetComparator implements Comparator<BitSet>
+	private static class BitSetComparator implements Comparator<BitSet>
 	{
 		@Override
 		public int compare(BitSet bs1, BitSet bs2) {
@@ -198,25 +247,12 @@ public class SimpleBitSetCache<E> implements IContainmentCache<E>{
 		return b;
 	}
 	
-	/**
-	 * @param bitset - a bitset.
-	 * @return the set of elements represented by the given bitset, according to the permutation.
-	 */
-	private HashSet<E> getSet(BitSet bitset)
-	{
-		final HashSet<E> set = new HashSet<E>();
-		for (int i = bitset.nextSetBit(0); i >= 0; i = bitset.nextSetBit(i+1)) {
-		     set.add(perm.inverse().get(i));
-		}
-		return set;
-	}
-	
     /**
      * @param bs1 - first bitset.
      * @param bs2 - second bitset.
      * @return true if and only if the set represented by bs1 is a subset of the set represented by bs2.
      */
-    private boolean isSubsetOrEqualTo(final BitSet bs1, final BitSet bs2) {
+    private static boolean isSubsetOrEqualTo(final BitSet bs1, final BitSet bs2) {
         return bs1.stream().allMatch(bs2::get);
     }
 

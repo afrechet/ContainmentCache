@@ -17,12 +17,14 @@ import containmentcache.IContainmentCache;
  * A recursive implementation of the Unlimited Branching Tree (UBTree) from
  * Hoffmann, Jörg, and Jana Koehler. "A new method to index and query sets." IJCAI. Vol. 99. 1999.
  * 
+ * Corresponds to a tree where each node represents a set element, and a path in the tree is a set.
+ * 
  * @author afrechet
  *
- * @param <E>
+ * @param <E> - elements in the tree.
+ * @param <T> - the type of additional content in cache entries.
  */
-//TODO Make thread safe.
-public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
+public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>{
 	
 	private static final int MAX_ELEMENTS = 2500;
 	
@@ -44,9 +46,9 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 * @param set - set of integer.
 	 * @return the given set sorted in array form.
 	 */
-	private ArrayList<E> getArray(ICacheSet<E> set)
+	private ArrayList<E> getArray(ICacheSet<E,T> set)
 	{
-		final int size = set.size(); 
+		final int size = set.getElements().size(); 
 		
 		if(size > MAX_ELEMENTS)
 		{
@@ -73,158 +75,148 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	}
 	
 	@Override
-	public boolean contains(ICacheSet<E> set)
+	public boolean contains(ICacheSet<E,T> set)
 	{
 		ArrayList<E> S = getArray(set);
-		return contains(S,0,fRoot);
+		return contains(S,0,fRoot,set);
 	}
 	/**
 	 * @param set - an integer set in sorted array form. 
 	 * @param s - an index in the set array.
-	 * @param root - a tree node. 
+	 * @param root - a tree node.
+	 * @param entry - the cache set entry we are looking for. 
 	 * @return true if there is a path from the given root node following nodes with elements from set[s:] (computed recursively).
 	 */
-	private boolean contains(ArrayList<E> set, int s, Node root)
+	private boolean contains(ArrayList<E> set, int s, Node root, ICacheSet<E,T> entry)
 	{
 		if(s==set.size())
 		{
-			return root.getEOP();
+			return root.entries.contains(entry);
 		}
 		else
 		{
 			E first = set.get(s);
-			Node child = root.getChild(first);
+			Node child = root.children.get(first);
 			if(child == null)
 			{
 				return false;
 			}
 			else
 			{
-				return contains(set,s+1,child);
+				return contains(set,s+1,child,entry);
 			}
 		}
 	}
 	
 	@Override
-	public void remove(ICacheSet<E> set)
+	public void remove(ICacheSet<E,T> set)
 	{
 		ArrayList<E> S = getArray(set);
-		remove(S,0,fRoot);
+		remove(S,0,fRoot,set);
 	}
 	/**
 	 * Removes the EOP marker from the node at the end of the path given by set[s:] in the tree (computed recursively).
 	 * @param set - an integer set in sorted array form. 
 	 * @param s - an index in the set array.
 	 * @param root - a tree node. 
+	 * @param entry - the entry we wish to remove.
 	 * @return true if, after removal of the set, the visited node has no children (so it should be removed from its parent's children).
 	 */
-	private boolean remove(ArrayList<E> set, int s, Node root)
+	private boolean remove(ArrayList<E> set, int s, Node root, ICacheSet<E,T> entry)
 	{
 		if(s==set.size())
 		{ 
-			if(root.getEOP())
+			if(!root.entries.isEmpty())
 			{
 				fSize--;
 			}
-			root.setEOP(false);
-			return root.getChildren().isEmpty();
+			root.entries.remove(entry);
+			return root.children.isEmpty();
 		}
 		else
 		{
 			E first = set.get(s);
-			Node child = root.getChild(first);
+			Node child = root.children.get(first);
 			if(child == null)
 			{
-				return !root.getEOP() && root.getChildren().isEmpty();
+				return root.entries.isEmpty() && root.children.isEmpty();
 			}
 			else
 			{
-				boolean lastnode = remove(set,s+1,child);
+				boolean lastnode = remove(set,s+1,child,entry);
 				if(lastnode)
 				{
-					root.removeChild(child);
+					root.children.remove(child);
 				}
-				return !root.getEOP() && root.getChildren().isEmpty();
+				return root.entries.isEmpty() && root.children.isEmpty();
 			}
 		}
 	}
 	
 	@Override
-	public void add(ICacheSet<E> set)
+	public void add(ICacheSet<E,T> set)
 	{
 		ArrayList<E> S = getArray(set);
-		insert(S, 0, fRoot);				
+		insert(S, 0, fRoot, set);				
 	}
 	/**
 	 * Insert the given set[s:] for given index s starting at the given note root.
 	 * @param set - an array list form of a set to insert.
 	 * @param s - the index in the array list.
 	 * @param root - the node at which to insert.
+	 * @param entry - the cache set entry we wish to add.
 	 */
-	private void insert(ArrayList<E> set, int s, Node root)
+	private void insert(ArrayList<E> set, int s, Node root, ICacheSet<E,T> entry)
 	{
 		if(s == set.size())
 		{
-			if(!root.getEOP())
+			if(root.entries.isEmpty())
 			{
 				fSize++;
 			}
-			root.setEOP(true);
+			root.entries.add(entry);
 			return;
 		}
 		
 		E first = set.get(s);
-		Node child = root.getChild(first);
+		Node child = root.children.get(first);
 		if(child == null)
 		{
 			child = new Node(first);
-			root.addChild(child);
+			root.children.put(first,child);
 		}
-		insert(set, s+1, child);
+		insert(set, s+1, child, entry);
 	}
 	
 	@Override
-	public Collection<Set<E>> getSubsets(ICacheSet<E> set)
+	public Collection<ICacheSet<E,T>> getSubsets(ICacheSet<E,T> set)
 	{
 		ArrayList<E> S = getArray(set);
 		return getSubsets(S, 0, fRoot);
 	}
 	/**
-	 * Get subset of given set[s:] for given index s starting at given root node.
-	 * @param set 
-	 * @param s
-	 * @param root
-	 * @return
+	 * @param set - set of elements.
+	 * @param s - index in set of elements.
+	 * @param root - root node.
+	 * @return the cache sets that are subsets of given set[s:] for given index s starting at given root node.
 	 */
-	private Collection<Set<E>> getSubsets(ArrayList<E> set, int s, Node root)
+	private Collection<ICacheSet<E,T>> getSubsets(ArrayList<E> set, int s, Node root)
 	{
-		final Collection<Set<E>> subsets = new LinkedList<Set<E>>();
+		final Collection<ICacheSet<E,T>> subsets = new LinkedList<ICacheSet<E,T>>();
 		
-		if(root.getEOP())
+		if(!root.entries.isEmpty())
 		{
-			final Set<E> subset = new HashSet<E>();
-			if(root.getElement() != ROOT_VALUE)
-			{
-				subset.add(root.getElement());
-			}
-			subsets.add(subset);
+			subsets.addAll(root.entries);
 		}
 		
 		for(int i=s;i<set.size();i++)
 		{
 			final E ielement = set.get(i); 
-			final Node ichild = root.getChild(ielement);
+			final Node ichild = root.children.get(ielement);
 			if(ichild != null)
 			{
-				final Collection<Set<E>> isubsets = getSubsets(set,i+1,ichild);
-				for(final Set<E> isubset : isubsets)
-				{
-					if(root.getElement() != ROOT_VALUE)
-					{
-						isubset.add(root.getElement());
-					}
-					subsets.add(isubset);
-				}
+				final Collection<ICacheSet<E,T>> isubsets = getSubsets(set,i+1,ichild);
+				subsets.addAll(isubsets);
 			}
 		}
 		
@@ -232,28 +224,29 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	}
 	
 	@Override
-	public Collection<Set<E>> getSupersets(ICacheSet<E> set)
+	public Collection<ICacheSet<E,T>> getSupersets(ICacheSet<E,T> set)
 	{
 		ArrayList<E> S = getArray(set);
 		return getSupersets(S, 0, fRoot);
 	}
-	private Collection<Set<E>> getSupersets(ArrayList<E> set, int s, Node root)
+	/**
+	 * @param set - set of elements.
+	 * @param s - index in set of elements.
+	 * @param root - root node.
+	 * @return the cache sets that are supersets of given set[s:] for given index s starting at given root node.
+	 */
+	private Collection<ICacheSet<E,T>> getSupersets(ArrayList<E> set, int s, Node root)
 	{
-		final Collection<Set<E>> supersets = new LinkedList<Set<E>>();
+		final Collection<ICacheSet<E,T>> supersets = new LinkedList<ICacheSet<E,T>>();
 
 		final E first;
 		if(s == set.size())
 		{
 			first = null;
 			
-			if(root.getEOP())
+			if(!root.entries.isEmpty())
 			{
-				final Set<E> superset = new HashSet<E>();
-				if(root.getElement() != ROOT_VALUE)
-				{
-					superset.add(root.getElement());
-				}
-				supersets.add(superset);
+				supersets.addAll(root.entries);
 			}
 		}
 		else
@@ -261,12 +254,12 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 			first = set.get(s);
 		}
 		
-		for(Entry<E,Node> childEntry : root.getChildren())
+		for(Entry<E,Node> childEntry : root.children.entrySet())
 		{
 			E childElement = childEntry.getKey();
 			Node child = childEntry.getValue();
 			
-			final Collection<Set<E>> csupersets;
+			final Collection<ICacheSet<E,T>> csupersets;
 			if(first == null || childElement.compareTo(first) < 0)
 			{
 				csupersets = getSupersets(set, s, child);
@@ -277,24 +270,17 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 			}
 			else
 			{
-				csupersets = new LinkedList<Set<E>>();
+				csupersets = new LinkedList<ICacheSet<E,T>>();
 			}
 			
-			for(final Set<E> csupserset : csupersets)
-			{
-				if(root.getElement() != ROOT_VALUE)
-				{
-					csupserset.add(root.getElement());
-				}
-				supersets.add(csupserset);
-			}	
+			supersets.addAll(csupersets);	
 		}	
 		
 		return supersets;
 	}
 
 	@Override
-	public int getNumberSubsets(ICacheSet<E> set) {
+	public int getNumberSubsets(ICacheSet<E,T> set) {
 		ArrayList<E> S = getArray(set);
 		return getNumberSubsets(S,0,fRoot);
 	}
@@ -302,19 +288,15 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	{
 		int num = 0;
 		
-		if(root.getEOP())
-		{
-			num ++;
-		}
+		num+=root.entries.size();
 		
 		for(int i=s;i<set.size();i++)
 		{
 			final E ielement = set.get(i); 
-			final Node ichild = root.getChild(ielement);
+			final Node ichild = root.children.get(ielement);
 			if(ichild != null)
 			{
-				int inum = getNumberSubsets(set,i+1,ichild);
-				num += inum;
+				num += getNumberSubsets(set,i+1,ichild);
 			}
 		}		
 		return num;		
@@ -322,7 +304,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	
 
 	@Override
-	public int getNumberSupersets(ICacheSet<E> set) {
+	public int getNumberSupersets(ICacheSet<E,T> set) {
 		ArrayList<E> S = getArray(set);
 		return getNumberSupersets(S,0,fRoot);
 	}
@@ -335,17 +317,14 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		{
 			first = null;
 			
-			if(root.getEOP())
-			{
-				num++;
-			}
+			num += root.entries.size();
 		}
 		else
 		{
 			first = set.get(s);
 		}
 		
-		for(final Entry<E,Node> childEntry : root.getChildren())
+		for(final Entry<E,Node> childEntry : root.children.entrySet())
 		{
 			final E childElement = childEntry.getKey();
 			final Node child = childEntry.getValue();
@@ -376,63 +355,32 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 */
 	private class Node {
 		
-		//Marks "End Of Path", that the path from the root to here corresponds to a set in the data structure.
-		private boolean fEOP;
+		/*
+		 * The entries at that node. The entries all correspond to the same
+		 * set, which in turn corresponds to the elements encountered in the unique
+		 * path from the root to this node. 
+		 */
+		final Set<ICacheSet<E,T>> entries;
 		//The element corresponding to this node.
-		private final E fElement;
+		final E element;
 		//The children of this node.
-		private final Map<E,Node> fChildren;
+		final Map<E,Node> children;
 		
 		/**
 		 * Basic tree node.
-		 * @param element - element contained at the node.
+		 * @param e - element contained at the node.
 		 */
-		public Node(E element)
+		public Node(E e)
 		{
-			this.fEOP = false;
-			this.fElement = element;
-			fChildren = new HashMap<E,Node>();
-		}
-		
-		public boolean removeChild(Node child)
-		{
-			return (fChildren.remove(child.getElement())!=null);
-		}
-		
-		public boolean addChild(Node child)
-		{
-			return (fChildren.put(child.fElement, child)!=null);
-		}
-		
-		public boolean getEOP()
-		{
-			return this.fEOP;
-		}
-		
-		public void setEOP(boolean eop)
-		{
-			this.fEOP = eop;
-		}
-		
-		public E getElement()
-		{
-			return this.fElement;
-		}
-		
-		public Node getChild(E element)
-		{
-			return fChildren.get(element);
-		}
-		
-		public Set<Entry<E,Node>> getChildren()
-		{
-			return Collections.unmodifiableSet(fChildren.entrySet());
+			entries = new HashSet<ICacheSet<E,T>>();
+			element = e;
+			children = new HashMap<E,Node>();
 		}
 		
 		@Override
 		public String toString()
 		{
-			return fElement+" ("+fEOP+") "+fChildren.keySet();
+			return element+" ("+entries.toString()+") "+children.keySet();
 		}
 	}
 

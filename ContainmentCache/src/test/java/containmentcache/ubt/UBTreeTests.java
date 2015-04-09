@@ -7,8 +7,8 @@ import containmentcache.AContainmentCacheTests;
 public class UBTreeTests extends AContainmentCacheTests{
 
 	@Override
-	protected UBTree<Integer> getCache(Set<Integer> universe) {
-		return new UBTree<Integer>();
+	protected UBTree<Integer,Object> getCache(Set<Integer> universe) {
+		return new UBTree<Integer,Object>();
 	}
 
 }
