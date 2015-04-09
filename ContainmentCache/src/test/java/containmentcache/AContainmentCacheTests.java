@@ -10,7 +10,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -18,6 +20,8 @@ import java.util.Set;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.junit.Test;
+
+import com.google.common.base.Strings;
 
 /**
  * Tests for containment caches.
@@ -27,9 +31,10 @@ public abstract class AContainmentCacheTests {
 	
 	/**
 	 * Factory method for the containment cache to be tested.
+	 * @param universe - the set of elements the cache is for. 
 	 * @return - containment cache instance to be tested.
 	 */
-	protected abstract IContainmentCache<Integer> getCache();
+	protected abstract IContainmentCache<Integer> getCache(Set<Integer> universe);
 	
 	private ICacheSet<Integer> makeSet(int... elements)
 	{
@@ -41,14 +46,15 @@ public abstract class AContainmentCacheTests {
 		return new CacheSet<Integer>(set);
 	}
 	
+	private final static Set<Integer> UNIVERSE = Collections.unmodifiableSet(new HashSet<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8,9,10)));
+	
 	/**
 	 * Creation tests.
 	 */
-	
 	@Test 
 	public void testEmptyTree()
 	{
-		final IContainmentCache<Integer> C = getCache();
+		final IContainmentCache<Integer> C = getCache(UNIVERSE);
 		
 		//Empty tree has size 0.
 		assertEquals(C.size(), 0);
@@ -73,7 +79,7 @@ public abstract class AContainmentCacheTests {
 	@Test 
 	public void testEmptySet()
 	{
-		final IContainmentCache<Integer> C = getCache();
+		final IContainmentCache<Integer> C = getCache(UNIVERSE);
 		
 		ICacheSet<Integer> S = makeSet();
 		C.add(S);
@@ -108,7 +114,7 @@ public abstract class AContainmentCacheTests {
 	@Test
 	public void testIdempotence()
 	{
-		final IContainmentCache<Integer> C = getCache();
+		final IContainmentCache<Integer> C = getCache(UNIVERSE);
 		
 		ICacheSet<Integer> S = makeSet(1,2,3);
 		
@@ -148,7 +154,7 @@ public abstract class AContainmentCacheTests {
 	@Test 
 	public void testOneSubset()
 	{
-		final IContainmentCache<Integer> C = getCache();
+		final IContainmentCache<Integer> C = getCache(UNIVERSE);
 		
 		Collection<Set<Integer>> nosubsets = C.getSubsets(makeSet(1,2,3,4));
 		assertTrue(nosubsets.isEmpty());
@@ -164,7 +170,7 @@ public abstract class AContainmentCacheTests {
 	@Test 
 	public void testOneSuperset()
 	{
-		final IContainmentCache<Integer> C = getCache();
+		final IContainmentCache<Integer> C = getCache(UNIVERSE);
 		
 		Collection<Set<Integer>> nosupersets = C.getSupersets(makeSet(1,2));
 		assertTrue(nosupersets.isEmpty());
@@ -181,7 +187,7 @@ public abstract class AContainmentCacheTests {
 	@Test
 	public void testIntersectingSubsets()
 	{
-		final IContainmentCache<Integer> C = getCache();
+		final IContainmentCache<Integer> C = getCache(UNIVERSE);
 	
 		ICacheSet<Integer> s1 = makeSet(1,2);
 		C.add(s1);	
@@ -200,7 +206,7 @@ public abstract class AContainmentCacheTests {
 	@Test
 	public void testNestedSubsets()
 	{
-		final IContainmentCache<Integer> C = getCache();
+		final IContainmentCache<Integer> C = getCache(UNIVERSE);
 	
 		ICacheSet<Integer> s1 = makeSet(1);
 		C.add(s1);	
@@ -217,7 +223,7 @@ public abstract class AContainmentCacheTests {
 	@Test 
 	public void testNestedSupersets()
 	{
-		final IContainmentCache<Integer> C = getCache();
+		final IContainmentCache<Integer> C = getCache(UNIVERSE);
 		
 		ICacheSet<Integer> s1 = makeSet(1,2);
 		C.add(s1);	
@@ -237,7 +243,7 @@ public abstract class AContainmentCacheTests {
 	@Test
 	public void testAddThenRemove()
 	{
-		final IContainmentCache<Integer> C = getCache();
+		final IContainmentCache<Integer> C = getCache(UNIVERSE);
 		
 		ICacheSet<Integer> S = makeSet(1,2,3);
 		
@@ -250,11 +256,6 @@ public abstract class AContainmentCacheTests {
 		assertFalse(C.contains(S));
 	}
 	
-	/**
-	 * Concurrency tests
-	 */
-	//TODO Add concurrency tests.
-	
 	
 	/**
 	 * Smoke tests.
@@ -264,18 +265,12 @@ public abstract class AContainmentCacheTests {
 	{
 		System.out.println("Smoke tests");
 		
-		//Create cache.
-		final IContainmentCache<Integer> cache = getCache();
-		final ProxyTimer timer = new ProxyTimer(cache);
-		@SuppressWarnings("unchecked")
-		final IContainmentCache<Integer> C = (IContainmentCache<Integer>) Proxy.newProxyInstance(IContainmentCache.class.getClassLoader(), new Class[] {IContainmentCache.class}, timer);
-		
 		//Parameters
 		final long seed = 1;
 		final Random rand = new Random(seed);
 
-		final int numtests = 500;
-		final int N = 750;
+		final int numtests = 1000;
+		final int N = 5000;
 		
 		
 		final List<Integer> universe = new ArrayList<Integer>();
@@ -284,6 +279,13 @@ public abstract class AContainmentCacheTests {
 			universe.add(i);
 		}
 		System.out.println("Universe has "+N+" elements.");
+		
+		
+		//Create cache and wrap with timer proxy.
+		final IContainmentCache<Integer> cache = getCache(new HashSet<Integer>(universe));
+		final ProxyTimer timer = new ProxyTimer(cache);
+		@SuppressWarnings("unchecked")
+		final IContainmentCache<Integer> C = (IContainmentCache<Integer>) Proxy.newProxyInstance(IContainmentCache.class.getClassLoader(), new Class[] {IContainmentCache.class}, timer);
 		
 		System.out.print("Load testing "+numtests+" times...");
 		for(int t=0;t<numtests;t++)
@@ -342,11 +344,24 @@ public abstract class AContainmentCacheTests {
 		System.out.println("");
 		
 		System.out.println("Runtime (ms) statistics:");
+		
 		System.out.printf("%-30s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n","Method","Mean","StdDev","Min","Q25","Median","Q75","Max");
+		
+		//System.out.printf("%s,%s,%s,%s,%s,%s,%s,%s\n","Method","Mean","StdDev","Min","Q25","Median","Q75","Max");
+		
 		final Map<Method,DescriptiveStatistics> stats = timer.getMethodStats();
-		for(Method method : stats.keySet())
+		
+		final List<Method> methods = new LinkedList<Method>(stats.keySet());
+		Collections.sort(methods,new Comparator<Method>(){
+			@Override
+			public int compare(Method o1, Method o2) {
+				return o1.getName().compareTo(o2.getName());
+		}});
+		
+		for(Method method : methods)
 		{
 			final DescriptiveStatistics stat = stats.get(method);
+			
 			
 			System.out.printf("%-30s %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f\n",
 					"\""+method.getName()+"\"",
@@ -357,6 +372,18 @@ public abstract class AContainmentCacheTests {
 					stat.getPercentile(50),
 					stat.getPercentile(75),
 					stat.getMax());
+					
+			/*
+			System.out.printf("%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+					"\""+method.getName()+"\"",
+					stat.getMean(),
+					stat.getStandardDeviation(),
+					stat.getMin(),
+					stat.getPercentile(25),
+					stat.getPercentile(50),
+					stat.getPercentile(75),
+					stat.getMax());
+			*/
 		}
 		
 		

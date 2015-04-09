@@ -3,8 +3,10 @@ package containmentcache.ubt;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -14,7 +16,7 @@ import containmentcache.IContainmentCache;
 /**
  * A recursive implementation of the Unlimited Branching Tree (UBTree) from
  * Hoffmann, Jörg, and Jana Koehler. "A new method to index and query sets." IJCAI. Vol. 99. 1999.
- *
+ * 
  * @author afrechet
  *
  * @param <E>
@@ -26,7 +28,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	
 	private final E ROOT_VALUE = null;
 	
-	private final UBTNode<E> fRoot;
+	private final Node fRoot;
 	private int fSize;
 	
 	/**
@@ -34,7 +36,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 */
 	public UBTree()
 	{
-		fRoot = new UBTNode<E>(ROOT_VALUE);
+		fRoot = new Node(ROOT_VALUE);
 		fSize = 0;
 	}
 	
@@ -69,23 +71,6 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	{
 		return fSize;
 	}
-	/**
-	 * @param root - a tree node.
-	 * @return the size of the subtree rooted at root (computed recursively).
-	 */
-	@Deprecated
-	private int size(UBTNode<E> root)
-	{
-		int size = root.getEOP() ? 1 : 0;
-		
-		for(Entry<E,UBTNode<E>> childEntry : root.getChildren())
-		{
-			UBTNode<E> child = childEntry.getValue();
-			size += size(child);
-		}
-		
-		return size;
-	}
 	
 	@Override
 	public boolean contains(ICacheSet<E> set)
@@ -99,7 +84,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 * @param root - a tree node. 
 	 * @return true if there is a path from the given root node following nodes with elements from set[s:] (computed recursively).
 	 */
-	private boolean contains(ArrayList<E> set, int s, UBTNode<E> root)
+	private boolean contains(ArrayList<E> set, int s, Node root)
 	{
 		if(s==set.size())
 		{
@@ -108,7 +93,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		else
 		{
 			E first = set.get(s);
-			UBTNode<E> child = root.getChild(first);
+			Node child = root.getChild(first);
 			if(child == null)
 			{
 				return false;
@@ -133,7 +118,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 * @param root - a tree node. 
 	 * @return true if, after removal of the set, the visited node has no children (so it should be removed from its parent's children).
 	 */
-	private boolean remove(ArrayList<E> set, int s, UBTNode<E> root)
+	private boolean remove(ArrayList<E> set, int s, Node root)
 	{
 		if(s==set.size())
 		{ 
@@ -147,7 +132,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		else
 		{
 			E first = set.get(s);
-			UBTNode<E> child = root.getChild(first);
+			Node child = root.getChild(first);
 			if(child == null)
 			{
 				return !root.getEOP() && root.getChildren().isEmpty();
@@ -176,7 +161,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 * @param s - the index in the array list.
 	 * @param root - the node at which to insert.
 	 */
-	private void insert(ArrayList<E> set, int s, UBTNode<E> root)
+	private void insert(ArrayList<E> set, int s, Node root)
 	{
 		if(s == set.size())
 		{
@@ -189,10 +174,10 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		}
 		
 		E first = set.get(s);
-		UBTNode<E> child = root.getChild(first);
+		Node child = root.getChild(first);
 		if(child == null)
 		{
-			child = new UBTNode<E>(first);
+			child = new Node(first);
 			root.addChild(child);
 		}
 		insert(set, s+1, child);
@@ -211,7 +196,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 	 * @param root
 	 * @return
 	 */
-	private Collection<Set<E>> getSubsets(ArrayList<E> set, int s, UBTNode<E> root)
+	private Collection<Set<E>> getSubsets(ArrayList<E> set, int s, Node root)
 	{
 		final Collection<Set<E>> subsets = new LinkedList<Set<E>>();
 		
@@ -228,7 +213,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		for(int i=s;i<set.size();i++)
 		{
 			final E ielement = set.get(i); 
-			final UBTNode<E> ichild = root.getChild(ielement);
+			final Node ichild = root.getChild(ielement);
 			if(ichild != null)
 			{
 				final Collection<Set<E>> isubsets = getSubsets(set,i+1,ichild);
@@ -252,7 +237,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		ArrayList<E> S = getArray(set);
 		return getSupersets(S, 0, fRoot);
 	}
-	private Collection<Set<E>> getSupersets(ArrayList<E> set, int s, UBTNode<E> root)
+	private Collection<Set<E>> getSupersets(ArrayList<E> set, int s, Node root)
 	{
 		final Collection<Set<E>> supersets = new LinkedList<Set<E>>();
 
@@ -276,10 +261,10 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 			first = set.get(s);
 		}
 		
-		for(Entry<E,UBTNode<E>> childEntry : root.getChildren())
+		for(Entry<E,Node> childEntry : root.getChildren())
 		{
 			E childElement = childEntry.getKey();
-			UBTNode<E> child = childEntry.getValue();
+			Node child = childEntry.getValue();
 			
 			final Collection<Set<E>> csupersets;
 			if(first == null || childElement.compareTo(first) < 0)
@@ -313,7 +298,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		ArrayList<E> S = getArray(set);
 		return getNumberSubsets(S,0,fRoot);
 	}
-	private int getNumberSubsets(ArrayList<E> set, int s, UBTNode<E> root)
+	private int getNumberSubsets(ArrayList<E> set, int s, Node root)
 	{
 		int num = 0;
 		
@@ -325,7 +310,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		for(int i=s;i<set.size();i++)
 		{
 			final E ielement = set.get(i); 
-			final UBTNode<E> ichild = root.getChild(ielement);
+			final Node ichild = root.getChild(ielement);
 			if(ichild != null)
 			{
 				int inum = getNumberSubsets(set,i+1,ichild);
@@ -341,7 +326,7 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		ArrayList<E> S = getArray(set);
 		return getNumberSupersets(S,0,fRoot);
 	}
-	private int getNumberSupersets(ArrayList<E> set, int s, UBTNode<E> root)
+	private int getNumberSupersets(ArrayList<E> set, int s, Node root)
 	{
 		int num = 0;
 
@@ -360,10 +345,10 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 			first = set.get(s);
 		}
 		
-		for(final Entry<E,UBTNode<E>> childEntry : root.getChildren())
+		for(final Entry<E,Node> childEntry : root.getChildren())
 		{
 			final E childElement = childEntry.getKey();
-			final UBTNode<E> child = childEntry.getValue();
+			final Node child = childEntry.getValue();
 			
 			final int cnum;
 			if(first == null || childElement.compareTo(first) < 0)
@@ -384,5 +369,73 @@ public class UBTree<E extends Comparable<E>> implements IContainmentCache<E>{
 		
 		return num;
 	}
+	
+	/**
+	 * UBTree node
+	 * @author afrechet
+	 */
+	private class Node {
+		
+		//Marks "End Of Path", that the path from the root to here corresponds to a set in the data structure.
+		private boolean fEOP;
+		//The element corresponding to this node.
+		private final E fElement;
+		//The children of this node.
+		private final Map<E,Node> fChildren;
+		
+		/**
+		 * Basic tree node.
+		 * @param element - element contained at the node.
+		 */
+		public Node(E element)
+		{
+			this.fEOP = false;
+			this.fElement = element;
+			fChildren = new HashMap<E,Node>();
+		}
+		
+		public boolean removeChild(Node child)
+		{
+			return (fChildren.remove(child.getElement())!=null);
+		}
+		
+		public boolean addChild(Node child)
+		{
+			return (fChildren.put(child.fElement, child)!=null);
+		}
+		
+		public boolean getEOP()
+		{
+			return this.fEOP;
+		}
+		
+		public void setEOP(boolean eop)
+		{
+			this.fEOP = eop;
+		}
+		
+		public E getElement()
+		{
+			return this.fElement;
+		}
+		
+		public Node getChild(E element)
+		{
+			return fChildren.get(element);
+		}
+		
+		public Set<Entry<E,Node>> getChildren()
+		{
+			return Collections.unmodifiableSet(fChildren.entrySet());
+		}
+		
+		@Override
+		public String toString()
+		{
+			return fElement+" ("+fEOP+") "+fChildren.keySet();
+		}
+	}
+
+	
 	
 }
