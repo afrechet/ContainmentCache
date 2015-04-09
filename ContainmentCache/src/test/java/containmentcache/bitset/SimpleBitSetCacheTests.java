@@ -3,13 +3,15 @@ package containmentcache.bitset;
 import java.util.Set;
 
 import containmentcache.AContainmentCacheTests;
+import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
 
 public class SimpleBitSetCacheTests extends AContainmentCacheTests {
 
 	@Override
-	protected IContainmentCache<Integer,Object> getCache(Set<Integer> universe) {
-		return new SimpleBitSetCache<Integer,Object>(universe);
+	protected <E extends Comparable<E>,C extends ICacheEntry<E>> IContainmentCache<E,C> getCache(Set<E> universe)
+	{
+		return new SimpleBitSetCache<E,C>(universe);
 	}
 
 }

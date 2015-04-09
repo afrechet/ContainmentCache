@@ -9,7 +9,7 @@ import java.util.Set;
  * @author afrechet
  * @param <E> - type of elements in cache set entry.
  */
-public class CacheSet<E> implements ICacheSet<E,Object> {
+public class CacheSet<E> implements ICacheEntry<E> {
 
 	private final Set<E> fSet;
 	
@@ -54,14 +54,5 @@ public class CacheSet<E> implements ICacheSet<E,Object> {
 			return false;
 		return true;
 	}
-
-	@Override
-	public Object getContent() {
-		throw new UnsupportedOperationException("Simple cache set entry has no content.");
-	}
-	
-	
-	
-	
 
 }

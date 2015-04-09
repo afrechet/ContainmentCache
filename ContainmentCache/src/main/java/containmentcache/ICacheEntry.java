@@ -8,16 +8,11 @@ import java.util.Set;
  *
  * @param <E> - elements available in a containment cache.
  */
-public interface ICacheSet<E,T> {
+public interface ICacheEntry<E> {
 	
 	/**
 	 * @return the set element to which the cache corresponds.
 	 */
 	public Set<E> getElements();
-	
-	/**
-	 * @return additional entry content.
-	 */
-	public T getContent();
 	
 }

@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import containmentcache.ICacheSet;
+import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
 
 /**
@@ -24,7 +24,7 @@ import containmentcache.IContainmentCache;
  * @param <E> - elements in the tree.
  * @param <T> - the type of additional content in cache entries.
  */
-public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>{
+public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements IContainmentCache<E,C>{
 	
 	private static final int MAX_ELEMENTS = 2500;
 	
@@ -46,7 +46,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	 * @param set - set of integer.
 	 * @return the given set sorted in array form.
 	 */
-	private ArrayList<E> getArray(ICacheSet<E,T> set)
+	private ArrayList<E> getArray(C set)
 	{
 		final int size = set.getElements().size(); 
 		
@@ -75,7 +75,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	}
 	
 	@Override
-	public boolean contains(ICacheSet<E,T> set)
+	public boolean contains(C set)
 	{
 		ArrayList<E> S = getArray(set);
 		return contains(S,0,fRoot,set);
@@ -87,7 +87,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	 * @param entry - the cache set entry we are looking for. 
 	 * @return true if there is a path from the given root node following nodes with elements from set[s:] (computed recursively).
 	 */
-	private boolean contains(ArrayList<E> set, int s, Node root, ICacheSet<E,T> entry)
+	private boolean contains(ArrayList<E> set, int s, Node root, C entry)
 	{
 		if(s==set.size())
 		{
@@ -109,7 +109,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	}
 	
 	@Override
-	public void remove(ICacheSet<E,T> set)
+	public void remove(C set)
 	{
 		ArrayList<E> S = getArray(set);
 		remove(S,0,fRoot,set);
@@ -122,7 +122,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	 * @param entry - the entry we wish to remove.
 	 * @return true if, after removal of the set, the visited node has no children (so it should be removed from its parent's children).
 	 */
-	private boolean remove(ArrayList<E> set, int s, Node root, ICacheSet<E,T> entry)
+	private boolean remove(ArrayList<E> set, int s, Node root, C entry)
 	{
 		if(s==set.size())
 		{ 
@@ -154,7 +154,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	}
 	
 	@Override
-	public void add(ICacheSet<E,T> set)
+	public void add(C set)
 	{
 		ArrayList<E> S = getArray(set);
 		insert(S, 0, fRoot, set);				
@@ -166,7 +166,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	 * @param root - the node at which to insert.
 	 * @param entry - the cache set entry we wish to add.
 	 */
-	private void insert(ArrayList<E> set, int s, Node root, ICacheSet<E,T> entry)
+	private void insert(ArrayList<E> set, int s, Node root, C entry)
 	{
 		if(s == set.size())
 		{
@@ -189,7 +189,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	}
 	
 	@Override
-	public Collection<ICacheSet<E,T>> getSubsets(ICacheSet<E,T> set)
+	public Collection<C> getSubsets(C set)
 	{
 		ArrayList<E> S = getArray(set);
 		return getSubsets(S, 0, fRoot);
@@ -200,9 +200,9 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	 * @param root - root node.
 	 * @return the cache sets that are subsets of given set[s:] for given index s starting at given root node.
 	 */
-	private Collection<ICacheSet<E,T>> getSubsets(ArrayList<E> set, int s, Node root)
+	private Collection<C> getSubsets(ArrayList<E> set, int s, Node root)
 	{
-		final Collection<ICacheSet<E,T>> subsets = new LinkedList<ICacheSet<E,T>>();
+		final Collection<C> subsets = new LinkedList<C>();
 		
 		if(!root.entries.isEmpty())
 		{
@@ -215,7 +215,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 			final Node ichild = root.children.get(ielement);
 			if(ichild != null)
 			{
-				final Collection<ICacheSet<E,T>> isubsets = getSubsets(set,i+1,ichild);
+				final Collection<C> isubsets = getSubsets(set,i+1,ichild);
 				subsets.addAll(isubsets);
 			}
 		}
@@ -224,7 +224,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	}
 	
 	@Override
-	public Collection<ICacheSet<E,T>> getSupersets(ICacheSet<E,T> set)
+	public Collection<C> getSupersets(C set)
 	{
 		ArrayList<E> S = getArray(set);
 		return getSupersets(S, 0, fRoot);
@@ -235,9 +235,9 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	 * @param root - root node.
 	 * @return the cache sets that are supersets of given set[s:] for given index s starting at given root node.
 	 */
-	private Collection<ICacheSet<E,T>> getSupersets(ArrayList<E> set, int s, Node root)
+	private Collection<C> getSupersets(ArrayList<E> set, int s, Node root)
 	{
-		final Collection<ICacheSet<E,T>> supersets = new LinkedList<ICacheSet<E,T>>();
+		final Collection<C> supersets = new LinkedList<C>();
 
 		final E first;
 		if(s == set.size())
@@ -259,7 +259,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 			E childElement = childEntry.getKey();
 			Node child = childEntry.getValue();
 			
-			final Collection<ICacheSet<E,T>> csupersets;
+			final Collection<C> csupersets;
 			if(first == null || childElement.compareTo(first) < 0)
 			{
 				csupersets = getSupersets(set, s, child);
@@ -270,7 +270,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 			}
 			else
 			{
-				csupersets = new LinkedList<ICacheSet<E,T>>();
+				csupersets = new LinkedList<C>();
 			}
 			
 			supersets.addAll(csupersets);	
@@ -280,7 +280,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	}
 
 	@Override
-	public int getNumberSubsets(ICacheSet<E,T> set) {
+	public int getNumberSubsets(C set) {
 		ArrayList<E> S = getArray(set);
 		return getNumberSubsets(S,0,fRoot);
 	}
@@ -304,7 +304,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 	
 
 	@Override
-	public int getNumberSupersets(ICacheSet<E,T> set) {
+	public int getNumberSupersets(C set) {
 		ArrayList<E> S = getArray(set);
 		return getNumberSupersets(S,0,fRoot);
 	}
@@ -360,7 +360,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 		 * set, which in turn corresponds to the elements encountered in the unique
 		 * path from the root to this node. 
 		 */
-		final Set<ICacheSet<E,T>> entries;
+		final Set<C> entries;
 		//The element corresponding to this node.
 		final E element;
 		//The children of this node.
@@ -372,7 +372,7 @@ public class UBTree<E extends Comparable<E>,T> implements IContainmentCache<E,T>
 		 */
 		public Node(E e)
 		{
-			entries = new HashSet<ICacheSet<E,T>>();
+			entries = new HashSet<C>();
 			element = e;
 			children = new HashMap<E,Node>();
 		}

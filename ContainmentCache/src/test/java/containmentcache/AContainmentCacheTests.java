@@ -17,9 +17,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.junit.Test;
+
+import com.google.common.base.Stopwatch;
 
 /**
  * Tests for containment caches.
@@ -32,9 +36,9 @@ public abstract class AContainmentCacheTests {
 	 * @param universe - the set of elements the cache is for. 
 	 * @return - containment cache instance to be tested.
 	 */
-	protected abstract IContainmentCache<Integer,Object> getCache(Set<Integer> universe);
+	protected abstract <E extends Comparable<E>,C extends ICacheEntry<E>> IContainmentCache<E,C> getCache(Set<E> universe);
 	
-	private ICacheSet<Integer,Object> makeSet(int... elements)
+	private CacheSet<Integer> makeSet(int... elements)
 	{
 		Set<Integer> set = new HashSet<Integer>();
 		for(int element : elements)
@@ -52,22 +56,22 @@ public abstract class AContainmentCacheTests {
 	@Test 
 	public void testEmptyTree()
 	{
-		final IContainmentCache<Integer,Object> C = getCache(UNIVERSE);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
 		//Empty tree has size 0.
-		assertEquals(C.size(), 0);
+		assertEquals(cache.size(), 0);
 		
 		//Empty tree does not contain empty set.
-		ICacheSet<Integer,Object> emptySet = makeSet();
-		assertTrue(C.getSubsets(emptySet).isEmpty());
-		assertTrue(C.getSupersets(emptySet).isEmpty());
-		assertFalse(C.contains(emptySet));
+		ICacheEntry<Integer> emptySet = makeSet();
+		assertTrue(cache.getSubsets(emptySet).isEmpty());
+		assertTrue(cache.getSupersets(emptySet).isEmpty());
+		assertFalse(cache.contains(emptySet));
 		
 		//Empty tree does not contain any subset.
-		assertTrue(C.getSubsets(makeSet(1,2,3)).isEmpty());
+		assertTrue(cache.getSubsets(makeSet(1,2,3)).isEmpty());
 		
 		//Empty tree does not contain any superset.
-		assertTrue(C.getSupersets(makeSet(1,2,3)).isEmpty());
+		assertTrue(cache.getSupersets(makeSet(1,2,3)).isEmpty());
 	}
 	
 	/**
@@ -77,33 +81,33 @@ public abstract class AContainmentCacheTests {
 	@Test 
 	public void testEmptySet()
 	{
-		final IContainmentCache<Integer,Object> C = getCache(UNIVERSE);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		ICacheSet<Integer,Object> S = makeSet();
-		C.add(S);
+		ICacheEntry<Integer> S = makeSet();
+		cache.add(S);
 		
-		Collection<ICacheSet<Integer,Object>> subsets;
-		Collection<ICacheSet<Integer,Object>> supersets;
+		Collection<ICacheEntry<Integer>> subsets;
+		Collection<ICacheEntry<Integer>> supersets;
 		
-		subsets = C.getSubsets(S);
+		subsets = cache.getSubsets(S);
 		assertEquals(subsets.size(),1);
 		assertTrue(subsets.contains(S));
-		supersets = C.getSupersets(S);
+		supersets = cache.getSupersets(S);
 		assertEquals(supersets.size(),1);
 		assertTrue(supersets.contains(S));
 		
-		ICacheSet<Integer,Object> R = makeSet(1,2,3,4);
-		C.add(R);
+		ICacheEntry<Integer> R = makeSet(1,2,3,4);
+		cache.add(R);
 		
-		subsets = C.getSubsets(R);
+		subsets = cache.getSubsets(R);
 		assertEquals(subsets.size(),2);
-		assertEquals(C.getNumberSubsets(R),subsets.size());
+		assertEquals(cache.getNumberSubsets(R),subsets.size());
 		assertTrue(subsets.contains(S));
 		assertTrue(subsets.contains(R));
 		
-		supersets = C.getSupersets(S);
+		supersets = cache.getSupersets(S);
 		assertEquals(supersets.size(),2);
-		assertEquals(C.getNumberSupersets(S),supersets.size());
+		assertEquals(cache.getNumberSupersets(S),supersets.size());
 		assertTrue(supersets.contains(S));
 		assertTrue(supersets.contains(R));
 		
@@ -112,71 +116,71 @@ public abstract class AContainmentCacheTests {
 	@Test
 	public void testIdempotence()
 	{
-		final IContainmentCache<Integer,Object> C = getCache(UNIVERSE);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		ICacheSet<Integer,Object> S = makeSet(1,2,3);
+		ICacheEntry<Integer> S = makeSet(1,2,3);
 		
-		C.add(S);
+		cache.add(S);
 		
-		Collection<ICacheSet<Integer,Object>> subsets;
-		Collection<ICacheSet<Integer,Object>> supersets;
+		Collection<ICacheEntry<Integer>> subsets;
+		Collection<ICacheEntry<Integer>> supersets;
 		
-		assertEquals(C.size(), 1);
+		assertEquals(cache.size(), 1);
 		
-		subsets = C.getSubsets(S);
+		subsets = cache.getSubsets(S);
 		assertTrue(subsets.contains(S));
 		assertEquals(subsets.size(),1); 
-		assertEquals(C.getNumberSubsets(S),subsets.size());
+		assertEquals(cache.getNumberSubsets(S),subsets.size());
 		
-		supersets = C.getSupersets(S);
+		supersets = cache.getSupersets(S);
 		assertTrue(supersets.contains(S));
 		assertEquals(supersets.size(),1);
-		assertEquals(C.getNumberSupersets(S),supersets.size());
+		assertEquals(cache.getNumberSupersets(S),supersets.size());
 		
-		C.add(S);
+		cache.add(S);
 		
-		assertEquals(C.size(), 1);
+		assertEquals(cache.size(), 1);
 		
-		subsets = C.getSubsets(S);
+		subsets = cache.getSubsets(S);
 		assertTrue(subsets.contains(S));
 		assertEquals(subsets.size(),1);
-		assertEquals(C.getNumberSubsets(S),subsets.size());
+		assertEquals(cache.getNumberSubsets(S),subsets.size());
 		
-		supersets = C.getSupersets(S);
+		supersets = cache.getSupersets(S);
 		assertTrue(supersets.contains(S));
 		assertEquals(supersets.size(),1);
-		assertEquals(C.getNumberSupersets(S),supersets.size());
+		assertEquals(cache.getNumberSupersets(S),supersets.size());
 		
 	}
 	
 	@Test 
 	public void testOneSubset()
 	{
-		final IContainmentCache<Integer,Object> C = getCache(UNIVERSE);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		Collection<ICacheSet<Integer,Object>> nosubsets = C.getSubsets(makeSet(1,2,3,4));
+		Collection<ICacheEntry<Integer>> nosubsets = cache.getSubsets(makeSet(1,2,3,4));
 		assertTrue(nosubsets.isEmpty());
 		
-		ICacheSet<Integer,Object> s1 = makeSet(1,2);
-		C.add(s1);
-		Collection<ICacheSet<Integer,Object>> onesubsets = C.getSubsets(makeSet(1,2,3,4));
+		ICacheEntry<Integer> s1 = makeSet(1,2);
+		cache.add(s1);
+		Collection<ICacheEntry<Integer>> onesubsets = cache.getSubsets(makeSet(1,2,3,4));
 		assertEquals(onesubsets.size(),1);
 		assertTrue(onesubsets.contains(s1));
-		assertEquals(C.getNumberSubsets(makeSet(1,2,3,4)),onesubsets.size());
+		assertEquals(cache.getNumberSubsets(makeSet(1,2,3,4)),onesubsets.size());
 	}
 	
 	@Test 
 	public void testOneSuperset()
 	{
-		final IContainmentCache<Integer,Object> C = getCache(UNIVERSE);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		Collection<ICacheSet<Integer,Object>> nosupersets = C.getSupersets(makeSet(1,2));
+		Collection<ICacheEntry<Integer>> nosupersets = cache.getSupersets(makeSet(1,2));
 		assertTrue(nosupersets.isEmpty());
 		
-		ICacheSet<Integer,Object> s1 = makeSet(1,2,3,4);
-		C.add(s1);
-		Collection<ICacheSet<Integer,Object>> onesubsets = C.getSupersets(makeSet(1,2));
-		int numsupersets = C.getNumberSupersets(makeSet(1,2));
+		ICacheEntry<Integer> s1 = makeSet(1,2,3,4);
+		cache.add(s1);
+		Collection<ICacheEntry<Integer>> onesubsets = cache.getSupersets(makeSet(1,2));
+		int numsupersets = cache.getNumberSupersets(makeSet(1,2));
 		assertEquals(numsupersets,1);
 		assertEquals(onesubsets.size(),numsupersets);
 		assertTrue(onesubsets.contains(s1));
@@ -185,15 +189,15 @@ public abstract class AContainmentCacheTests {
 	@Test
 	public void testIntersectingSubsets()
 	{
-		final IContainmentCache<Integer,Object> C = getCache(UNIVERSE);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 	
-		ICacheSet<Integer,Object> s1 = makeSet(1,2);
-		C.add(s1);	
-		ICacheSet<Integer,Object> s2 = makeSet(2,3);
-		C.add(s2);
+		ICacheEntry<Integer> s1 = makeSet(1,2);
+		cache.add(s1);	
+		ICacheEntry<Integer> s2 = makeSet(2,3);
+		cache.add(s2);
 		
-		Collection<ICacheSet<Integer,Object>> subsets = C.getSubsets(makeSet(1,2,3,4));		
-		int numsubsets = C.getNumberSubsets(makeSet(1,2,3,4));
+		Collection<ICacheEntry<Integer>> subsets = cache.getSubsets(makeSet(1,2,3,4));		
+		int numsubsets = cache.getNumberSubsets(makeSet(1,2,3,4));
 		
 		assertEquals(numsubsets,2);
 		assertEquals(subsets.size(),numsubsets);
@@ -204,14 +208,14 @@ public abstract class AContainmentCacheTests {
 	@Test
 	public void testNestedSubsets()
 	{
-		final IContainmentCache<Integer,Object> C = getCache(UNIVERSE);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 	
-		ICacheSet<Integer,Object> s1 = makeSet(1);
-		C.add(s1);	
-		ICacheSet<Integer,Object> s2 = makeSet(1,2);
-		C.add(s2);
+		ICacheEntry<Integer> s1 = makeSet(1);
+		cache.add(s1);	
+		ICacheEntry<Integer> s2 = makeSet(1,2);
+		cache.add(s2);
 		
-		Collection<ICacheSet<Integer,Object>> subsets = C.getSubsets(makeSet(1,2,3,4));
+		Collection<ICacheEntry<Integer>> subsets = cache.getSubsets(makeSet(1,2,3,4));
 		
 		assertEquals(subsets.size(),2);
 		assertTrue(subsets.contains(s1));
@@ -221,14 +225,14 @@ public abstract class AContainmentCacheTests {
 	@Test 
 	public void testNestedSupersets()
 	{
-		final IContainmentCache<Integer,Object> C = getCache(UNIVERSE);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		ICacheSet<Integer,Object> s1 = makeSet(1,2);
-		C.add(s1);	
-		ICacheSet<Integer,Object> s2 = makeSet(1,2,3);
-		C.add(s2);
+		ICacheEntry<Integer> s1 = makeSet(1,2);
+		cache.add(s1);	
+		ICacheEntry<Integer> s2 = makeSet(1,2,3);
+		cache.add(s2);
 		
-		Collection<ICacheSet<Integer,Object>> supersets = C.getSupersets(makeSet(1));
+		Collection<ICacheEntry<Integer>> supersets = cache.getSupersets(makeSet(1));
 		
 		assertEquals(supersets.size(),2);
 		assertTrue(supersets.contains(s1));
@@ -241,17 +245,17 @@ public abstract class AContainmentCacheTests {
 	@Test
 	public void testAddThenRemove()
 	{
-		final IContainmentCache<Integer,Object> C = getCache(UNIVERSE);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		ICacheSet<Integer,Object> S = makeSet(1,2,3);
+		ICacheEntry<Integer> S = makeSet(1,2,3);
 		
-		C.add(S);
-		assertEquals(C.size(), 1);
-		assertTrue(C.contains(S));
+		cache.add(S);
+		assertEquals(cache.size(), 1);
+		assertTrue(cache.contains(S));
 		
-		C.remove(S);
-		assertEquals(C.size(), 0);
-		assertFalse(C.contains(S));
+		cache.remove(S);
+		assertEquals(cache.size(), 0);
+		assertFalse(cache.contains(S));
 	}
 	
 	
@@ -261,13 +265,14 @@ public abstract class AContainmentCacheTests {
 	@Test
 	public void smokeTest()
 	{
-		System.out.println("Smoke tests");
+		System.out.println("SMOKE TESTS");
 		
 		//Parameters
 		final long seed = 1;
 		final Random rand = new Random(seed);
 
-		final int numtests = 200;
+		final int numtests = 10000;
+		final int loadincrement = 50;
 		final int N = 750;
 		
 		
@@ -276,68 +281,70 @@ public abstract class AContainmentCacheTests {
 		{
 			universe.add(i);
 		}
-		System.out.println("Universe has "+N+" elements.");
+		System.out.println("Universe has "+N+" elements ("+(int) Math.pow(2, N)+" possible sets).");
 		
 		
 		//Create cache and wrap with timer proxy.
-		final IContainmentCache<Integer,Object> cache = getCache(new HashSet<Integer>(universe));
-		final ProxyTimer timer = new ProxyTimer(cache);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> undecoratedcache = getCache(new HashSet<Integer>(universe));
+		final ProxyTimer timer = new ProxyTimer(undecoratedcache);
 		@SuppressWarnings("unchecked")
-		final IContainmentCache<Integer,Object> C = (IContainmentCache<Integer,Object>) Proxy.newProxyInstance(IContainmentCache.class.getClassLoader(), new Class[] {IContainmentCache.class}, timer);
+		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = (IContainmentCache<Integer,ICacheEntry<Integer>>) Proxy.newProxyInstance(IContainmentCache.class.getClassLoader(), new Class[] {IContainmentCache.class}, timer);
 		
 		System.out.print("Load testing "+numtests+" times...");
+		final Stopwatch watch = Stopwatch.createStarted();
 		for(int t=0;t<numtests;t++)
 		{
 			if(t%(numtests/10) < (t-1)%(numtests/10))
 			{
-				System.out.print(((double) t)/((double) numtests)*100.0+"%...");
+				System.out.print(((double) t)/((double) numtests)*100.0+"% ("+undecoratedcache.size()+")...");
 			}
 			
-			int M = rand.nextInt(10);
 			//Add some load to the data structure.
-			for(int m=0;m<M;m++)
+			for(int m=0;m<loadincrement;m++)
 			{
 				Collections.shuffle(universe, rand);
 				List<Integer> elements = universe.subList(0, rand.nextInt(universe.size()));
-				ICacheSet<Integer,Object> set = new CacheSet<Integer>(new HashSet<Integer>(elements));
+				ICacheEntry<Integer> set = new CacheSet<Integer>(new HashSet<Integer>(elements));
 				
-				C.add(set);
+				cache.add(set);
 			}
 			
 			//Test a certain set.
 			Collections.shuffle(universe, rand);
 			List<Integer> elements = universe.subList(0, rand.nextInt(universe.size()));
-			ICacheSet<Integer,Object> set = new CacheSet<Integer>(new HashSet<Integer>(elements));
+			ICacheEntry<Integer> set = new CacheSet<Integer>(new HashSet<Integer>(elements));
 			
 			//Test addition.
-			C.add(set);
-			assertTrue(C.contains(set));
-			assertTrue(C.getSubsets(set).contains(set));
-			assertTrue(C.getSupersets(set).contains(set));
-			int size = C.size();
+			cache.add(set);
+			assertTrue(cache.contains(set));
+			assertTrue(cache.getSubsets(set).contains(set));
+			assertTrue(cache.getSupersets(set).contains(set));
+			int size = cache.size();
 			
 			//Test subsets
-			final Collection<ICacheSet<Integer,Object>> subsets = C.getSubsets(set);
+			final Collection<ICacheEntry<Integer>> subsets = cache.getSubsets(set);
 			
 			//Test number subsets
-			final int numsubsets = C.getNumberSubsets(set);
+			final int numsubsets = cache.getNumberSubsets(set);
 			assertEquals(subsets.size(), numsubsets);
 			
 			//Test supersets
-			final Collection<ICacheSet<Integer,Object>> supersets = C.getSupersets(set);
+			final Collection<ICacheEntry<Integer>> supersets = cache.getSupersets(set);
 			
 			//Test number supersets
-			final int numsupersets = C.getNumberSupersets(set);
+			final int numsupersets = cache.getNumberSupersets(set);
 			assertEquals(numsupersets, supersets.size());
 			
 			
 			//Test removal.
-			C.remove(set);
-			assertFalse(C.contains(set));
-			assertFalse(C.getSubsets(set).contains(set));
-			assertFalse(C.getSupersets(set).contains(set));
-			assertEquals(C.size(), size-1);
+			cache.remove(set);
+			assertFalse(cache.contains(set));
+			assertFalse(cache.getSubsets(set).contains(set));
+			assertFalse(cache.getSupersets(set).contains(set));
+			assertEquals(cache.size(), size-1);
 		}
+		watch.stop();
+		final long totalduration = watch.elapsed(TimeUnit.MILLISECONDS);
 		
 		System.out.println("");
 		
@@ -384,8 +391,7 @@ public abstract class AContainmentCacheTests {
 			*/
 		}
 		
-		
-		
+		System.out.printf("Total time: %s\n",DurationFormatUtils.formatDuration(totalduration, "HH:mm:ss.S"));
 		
 	}
 	

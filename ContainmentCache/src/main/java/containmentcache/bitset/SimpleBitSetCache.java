@@ -11,7 +11,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
-import containmentcache.ICacheSet;
+import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
 
 /**
@@ -26,10 +26,10 @@ import containmentcache.IContainmentCache;
  * @param <E> - the elements the sets.
  * @param <T> - the type of additional content in cache entries.
  */
-public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
+public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainmentCache<E,C>{
 	
 	//The entries of the data structure, hashed by their bitset representation.
-	private final Map<BitSet,Set<ICacheSet<E,T>>> entries;
+	private final Map<BitSet,Set<C>> entries;
 	//The tree of bitset, to organize the sub/superset structure.
 	private final TreeSet<BitSet> tree;
 	//The element permutation to map sets to bitsets.
@@ -54,7 +54,7 @@ public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
 		}
 		
 		perm = new HashMap<E,Integer>(permutation);
-		entries = new HashMap<BitSet,Set<ICacheSet<E,T>>>();
+		entries = new HashMap<BitSet,Set<C>>();
 		tree = new TreeSet<BitSet>(new BitSetComparator());
 	}
 	
@@ -72,16 +72,16 @@ public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
 			perm.put(element, index++);
 		}
 		
-		entries = new HashMap<BitSet,Set<ICacheSet<E,T>>>();
+		entries = new HashMap<BitSet,Set<C>>();
 		tree = new TreeSet<BitSet>(new BitSetComparator());
 	}
 	
 		
 	@Override
-	public void add(ICacheSet<E,T> set) {
+	public void add(C set) {
 		final BitSet bitset = getBitSet(set.getElements());
 		
-		final Set<ICacheSet<E,T>> bitsetentries = entries.getOrDefault(bitset, new HashSet<ICacheSet<E,T>>());
+		final Set<C> bitsetentries = entries.getOrDefault(bitset, new HashSet<C>());
 		if(bitsetentries.isEmpty())
 		{
 			tree.add(bitset);
@@ -91,10 +91,10 @@ public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
 	}
 
 	@Override
-	public void remove(ICacheSet<E,T> set) {
+	public void remove(C set) {
 		final BitSet bitset = getBitSet(set.getElements());
 		
-		final Set<ICacheSet<E,T>> bitsetentries = entries.get(bitset);
+		final Set<C> bitsetentries = entries.get(bitset);
 		if(bitsetentries != null)
 		{
 			bitsetentries.remove(set);			
@@ -111,11 +111,11 @@ public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
 	}
 
 	@Override
-	public boolean contains(ICacheSet<E,T> set) {
+	public boolean contains(C set) {
 		final BitSet bitset = getBitSet(set.getElements());
 		if(entries.containsKey(bitset))
 		{
-			final Set<ICacheSet<E,T>> bitsetentries = entries.get(bitset);
+			final Set<C> bitsetentries = entries.get(bitset);
 			return bitsetentries.contains(set);
 		}
 		else
@@ -126,9 +126,9 @@ public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
 	}
 
 	@Override
-	public LinkedList<ICacheSet<E,T>> getSubsets(ICacheSet<E,T> set) {
+	public LinkedList<C> getSubsets(C set) {
 		
-		final LinkedList<ICacheSet<E,T>> subsets = new LinkedList<ICacheSet<E,T>>();
+		final LinkedList<C> subsets = new LinkedList<C>();
 		
 		final BitSet bs = getBitSet(set.getElements());
 		for(BitSet smallerbs : tree.headSet(bs, true))
@@ -143,7 +143,7 @@ public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
 	}
 
 	@Override
-	public int getNumberSubsets(ICacheSet<E,T> set) {
+	public int getNumberSubsets(C set) {
 		int numsubsets = 0;
 		
 		BitSet bs = getBitSet(set.getElements());
@@ -159,9 +159,9 @@ public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
 	}
 
 	@Override
-	public Collection<ICacheSet<E,T>> getSupersets(ICacheSet<E,T> set) {
+	public Collection<C> getSupersets(C set) {
 		
-		final LinkedList<ICacheSet<E,T>> supersets = new LinkedList<ICacheSet<E,T>>();
+		final LinkedList<C> supersets = new LinkedList<C>();
 		
 		final BitSet bs = getBitSet(set.getElements());
 		for(BitSet largerbs : tree.tailSet(bs, true))
@@ -176,7 +176,7 @@ public class SimpleBitSetCache<E,T> implements IContainmentCache<E,T>{
 	}
 
 	@Override
-	public int getNumberSupersets(ICacheSet<E,T> set) {
+	public int getNumberSupersets(C set) {
 		
 		int numsupersets = 0;	
 		final BitSet bs = getBitSet(set.getElements());
