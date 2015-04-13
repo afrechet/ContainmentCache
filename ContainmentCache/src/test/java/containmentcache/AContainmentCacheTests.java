@@ -125,7 +125,7 @@ public abstract class AContainmentCacheTests {
 		Collection<ICacheEntry<Integer>> subsets;
 		Collection<ICacheEntry<Integer>> supersets;
 		
-		assertEquals(cache.size(), 1);
+		assertEquals(1,cache.size());
 		
 		subsets = cache.getSubsets(S);
 		assertTrue(subsets.contains(S));
@@ -134,21 +134,21 @@ public abstract class AContainmentCacheTests {
 		
 		supersets = cache.getSupersets(S);
 		assertTrue(supersets.contains(S));
-		assertEquals(supersets.size(),1);
+		assertEquals(1,supersets.size());
 		assertEquals(cache.getNumberSupersets(S),supersets.size());
 		
 		cache.add(S);
 		
-		assertEquals(cache.size(), 1);
+		assertEquals(1,cache.size());
 		
 		subsets = cache.getSubsets(S);
 		assertTrue(subsets.contains(S));
 		assertEquals(subsets.size(),1);
-		assertEquals(cache.getNumberSubsets(S),subsets.size());
+		assertEquals(subsets.size(),cache.getNumberSubsets(S));
 		
 		supersets = cache.getSupersets(S);
 		assertTrue(supersets.contains(S));
-		assertEquals(supersets.size(),1);
+		assertEquals(1,supersets.size());
 		assertEquals(cache.getNumberSupersets(S),supersets.size());
 		
 	}
