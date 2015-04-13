@@ -271,7 +271,7 @@ public abstract class AContainmentCacheTests {
 		final long seed = 1;
 		final Random rand = new Random(seed);
 
-		final int numtests = 10000;
+		final int numtests = 100;
 		final int loadincrement = 50;
 		final int N = 750;
 		

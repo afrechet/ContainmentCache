@@ -1,6 +1,6 @@
 package containmentcache;
 
-import java.util.Collection;
+import java.util.Set;
 
 /**
  * Organizes cache entries ({@link ICacheEntry}) so that it easy to obtain cache entries that are subsets/supersets
@@ -36,7 +36,7 @@ public interface IContainmentCache<E,C extends ICacheEntry<E>> {
 	 * @param set - set for which to get all present subsets in the tree.
 	 * @return every set currently in the tree that is a subset of the given set.
 	 */
-	public Collection<C> getSubsets(C set);
+	public Set<C> getSubsets(C set);
 	
 	/**
 	 * 
@@ -49,7 +49,7 @@ public interface IContainmentCache<E,C extends ICacheEntry<E>> {
 	 * @param set - set for which to get all present supersets in the tree.
 	 * @return every set currently in the tree that is a superset of the given set.
 	 */
-	public Collection<C> getSupersets(C set);
+	public Set<C> getSupersets(C set);
 	
 	/**
 	 * 

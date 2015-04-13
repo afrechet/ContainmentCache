@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -126,9 +125,9 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	}
 
 	@Override
-	public LinkedList<C> getSubsets(C set) {
+	public HashSet<C> getSubsets(C set) {
 		
-		final LinkedList<C> subsets = new LinkedList<C>();
+		final HashSet<C> subsets = new HashSet<C>();
 		
 		final BitSet bs = getBitSet(set.getElements());
 		for(BitSet smallerbs : tree.headSet(bs, true))
@@ -138,7 +137,6 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 				subsets.addAll(entries.get(smallerbs));
 			}
 		}
-		
 		return subsets;
 	}
 
@@ -159,9 +157,9 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	}
 
 	@Override
-	public Collection<C> getSupersets(C set) {
+	public HashSet<C> getSupersets(C set) {
 		
-		final LinkedList<C> supersets = new LinkedList<C>();
+		final HashSet<C> supersets = new HashSet<C>();
 		
 		final BitSet bs = getBitSet(set.getElements());
 		for(BitSet largerbs : tree.tailSet(bs, true))

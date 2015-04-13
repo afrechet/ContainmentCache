@@ -1,8 +1,11 @@
-package containmentcache;
+package containmentcache.decorators;
 
-import java.util.Collection;
+import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import containmentcache.ICacheEntry;
+import containmentcache.IContainmentCache;
 
 /**
  * Decorator that makes a containment cache thread safe through the use of an read/write lock.
@@ -91,7 +94,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public Collection<C> getSubsets(C set) {
+	public Set<C> getSubsets(C set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -117,7 +120,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public Collection<C> getSupersets(C set) {
+	public Set<C> getSupersets(C set) {
 		fLock.readLock().lock();
 		try
 		{

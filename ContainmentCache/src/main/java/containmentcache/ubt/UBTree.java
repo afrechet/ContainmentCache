@@ -189,7 +189,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	}
 	
 	@Override
-	public Collection<C> getSubsets(C set)
+	public HashSet<C> getSubsets(C set)
 	{
 		ArrayList<E> S = getArray(set);
 		return getSubsets(S, 0, fRoot);
@@ -200,9 +200,9 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	 * @param root - root node.
 	 * @return the cache sets that are subsets of given set[s:] for given index s starting at given root node.
 	 */
-	private Collection<C> getSubsets(ArrayList<E> set, int s, Node root)
+	private HashSet<C> getSubsets(ArrayList<E> set, int s, Node root)
 	{
-		final Collection<C> subsets = new LinkedList<C>();
+		final HashSet<C> subsets = new HashSet<C>();
 		
 		if(!root.entries.isEmpty())
 		{
@@ -224,7 +224,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	}
 	
 	@Override
-	public Collection<C> getSupersets(C set)
+	public HashSet<C> getSupersets(C set)
 	{
 		ArrayList<E> S = getArray(set);
 		return getSupersets(S, 0, fRoot);
@@ -235,9 +235,9 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	 * @param root - root node.
 	 * @return the cache sets that are supersets of given set[s:] for given index s starting at given root node.
 	 */
-	private Collection<C> getSupersets(ArrayList<E> set, int s, Node root)
+	private HashSet<C> getSupersets(ArrayList<E> set, int s, Node root)
 	{
-		final Collection<C> supersets = new LinkedList<C>();
+		final HashSet<C> supersets = new HashSet<C>();
 
 		final E first;
 		if(s == set.size())
