@@ -20,6 +20,7 @@ import containmentcache.IContainmentCache;
  * @param <E> - type of elements in set representing entry.
  * @param <C> - type of cache entry.
  */
+@Deprecated
 public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> implements IContainmentCache<E, C> {
 	
 	private final IContainmentCache<E,C> fCache;
