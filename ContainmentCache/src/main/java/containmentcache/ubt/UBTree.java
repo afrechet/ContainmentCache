@@ -1,7 +1,6 @@
 package containmentcache.ubt;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,6 +20,9 @@ import containmentcache.IContainmentCache;
  * Hoffmann, Jörg, and Jana Koehler. "A new method to index and query sets." IJCAI. Vol. 99. 1999.
  * 
  * Corresponds to a tree where each node represents a set element, and a path in the tree is a set.
+ * 
+ * The {@link #getSubsets(ICacheEntry)} and {@link #getSupersets(ICacheEntry)} methods return iterables that will lazily traverse the tree
+ * for the next sub/superset. These iterators might be slightly heavyweight has they need to keep track of what has been traversed in the tree. 
  * 
  * @author afrechet
  *
@@ -202,91 +204,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 			}};
 	}
 	
-	/**
-	 * Container class for the two types of UBTree iterators.
-	 * 
-	 * @author afrechet
-	 */
-	private class IteratorEntry
-	{
-		private final Node node;
-		private final int index;
-		
-		public IteratorEntry(Node n, int i)
-		{
-			node = n;
-			index = i;
-		}
-	}
 	
-	/**
-	 * Lazily traverses a UBT for subsets.
-	 *  
-	 * @author afrechet
-	 */
-	private class SubsetsIterator implements Iterator<C>
-	{
-		private final ArrayList<E> fSet;
-		private final Queue<IteratorEntry> fQueue;
-		private Iterator<C> fCurrentIterator;
-		
-		/**
-		 * Construct a new subset iterator for the given set starting at the given root.
-		 * @param root - a UBT node at which search for subset must start.
-		 * @param set - a set for which we want to find subsets.
-		 */
-		public SubsetsIterator(Node root, ArrayList<E> set)
-		{
-			fSet = set;
-			
-			//Go breath first in UBT for next node.
-			fQueue = new LinkedList<IteratorEntry>();
-			fQueue.add(new IteratorEntry(root, 0));
-			
-			fCurrentIterator = Collections.emptyIterator();
-		}
-		
-		//Continue the search for a subset iterator.
-		private void updateCurrentIterator()
-		{
-			while(!fQueue.isEmpty() && !fCurrentIterator.hasNext())
-			{
-				//Get node from the queue.
-				final IteratorEntry entry = fQueue.remove();
-				final Node root = entry.node;
-				final int index = entry.index;
-				
-				//Process the node.
-				if(!root.entries.isEmpty())
-				{
-					fCurrentIterator = root.entries.iterator();
-				}
-				
-				//Add node's children to the queue.
-				for(int i=index;i<fSet.size();i++)
-				{
-					final E ielement = fSet.get(i); 
-					final Node ichild = root.children.get(ielement);
-					if(ichild != null)
-					{
-						fQueue.add(new IteratorEntry(ichild, i+1));
-					}
-				}
-			}
-		}
-		
-		@Override
-		public boolean hasNext() {
-			updateCurrentIterator();
-			return fCurrentIterator.hasNext();
-		}
-
-		@Override
-		public C next() {
-			updateCurrentIterator();
-			return fCurrentIterator.next();
-		}
-	}
 	
 	@Override
 	public Iterable<C> getSupersets(C set)
@@ -296,91 +214,6 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 			public Iterator<C> iterator() {
 				return new SupersetsIterator(fRoot, getArray(set));
 			}};
-	}
-	
-	/**
-	 * Lazily traverses a UBT for supersets.
-	 *  
-	 * @author afrechet
-	 */
-	private class SupersetsIterator implements Iterator<C>
-	{
-		private final ArrayList<E> fSet;
-		private final Queue<IteratorEntry> fQueue;
-		private Iterator<C> fCurrentIterator;
-		
-		/**
-		 * Construct a new superset iterator for the given set starting at the given root.
-		 * @param root - a UBT node at which search for superset must start.
-		 * @param set - a set for which we want to find supersets.
-		 */
-		public SupersetsIterator(Node root, ArrayList<E> set)
-		{
-			fSet = set;
-			
-			//Go breath first in UBT for next node.
-			fQueue = new LinkedList<IteratorEntry>();
-			fQueue.add(new IteratorEntry(root, 0));
-			
-			fCurrentIterator = Collections.emptyIterator();
-		}
-		
-		//Continue the search for a superset iterator.
-		private void updateCurrentIterator()
-		{
-			while(!fQueue.isEmpty() && !fCurrentIterator.hasNext())
-			{
-				
-				//Get the node from the queue.
-				final IteratorEntry entry = fQueue.remove();
-				final Node root = entry.node;
-				final int index = entry.index;
-				
-				//Get first element, possibly processing node.
-				final E first;
-				if(index == fSet.size())
-				{
-					first = null;
-					
-					if(!root.entries.isEmpty())
-					{
-						fCurrentIterator = root.entries.iterator();
-					}
-				}
-				else
-				{
-					first = fSet.get(index);
-				}
-				
-				//Add node's children to the queue.
-				for(Entry<E,Node> childEntry : root.children.entrySet())
-				{
-					final E childElement = childEntry.getKey();
-					final Node child = childEntry.getValue();
-					
-					if(first == null || childElement.compareTo(first) < 0)
-					{
-						fQueue.add(new IteratorEntry(child,index));
-					}
-					else if(childElement.compareTo(first) == 0)
-					{
-						fQueue.add(new IteratorEntry(child,index+1));
-					}
-				}	
-			}
-		}
-		
-		@Override
-		public boolean hasNext() {
-			updateCurrentIterator();
-			return fCurrentIterator.hasNext();
-		}
-
-		@Override
-		public C next() {
-			updateCurrentIterator();
-			return fCurrentIterator.next();
-		}
 	}
 	
 	@Override
@@ -453,6 +286,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 		return num;
 	}
 	
+	
 	/**
 	 * UBTree node
 	 * @author afrechet
@@ -487,7 +321,155 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 			return element+" ("+entries.toString()+") "+children.keySet();
 		}
 	}
-
 	
+	
+	/*
+	 * Lazy UBTree traversal iterators. 
+	 */
+	
+	/**
+	 * Container class for the two types of UBTree iterators.
+	 * 
+	 * @author afrechet
+	 */
+	private class IteratorEntry
+	{
+		private final Node node;
+		private final int index;
+		
+		public IteratorEntry(Node n, int i)
+		{
+			node = n;
+			index = i;
+		}
+	}
+	
+	/**
+	 * Abstract tree traversal iterator used to implement sub/superset iterators.
+	 * 
+	 * @author afrechet
+	 */
+	private abstract class ATreeIterator implements Iterator<C>
+	{
+		final ArrayList<E> fSet;
+		final Queue<IteratorEntry> fQueue;
+		Iterator<C> fCurrentIterator;
+		
+		public ATreeIterator(Node root, ArrayList<E> set)
+		{
+			fSet = set;
+			
+			//Go breath-first in UBT traversal for next node.
+			fQueue = new LinkedList<IteratorEntry>();
+			fQueue.add(new IteratorEntry(root, 0));
+			
+			fCurrentIterator = Collections.emptyIterator();
+		}
+		
+		/**
+		 * Process a node obtained from the traversal queue, possibly updating the current iterator if a match is found,
+		 * and also adding the node's children to the traversal queue for future processing.
+		 * 
+		 * @param node - a node.
+		 * @param index - the index in the set at which we are.
+		 */
+		abstract void processNode(Node node, int index);
+		
+		/**
+		 * Empties the traversal queue has long as the current iterator has no next element.
+		 */
+		private final void updateCurrentIterator()
+		{
+			while(!fQueue.isEmpty() && !fCurrentIterator.hasNext())
+			{
+				//Get node from the queue.
+				final IteratorEntry entry = fQueue.remove();
+				final Node node = entry.node;
+				final int index = entry.index;
+				
+				processNode(node,index);
+			}
+		}
+		
+		@Override
+		public final boolean hasNext() {
+			updateCurrentIterator();
+			return fCurrentIterator.hasNext();
+		}
+
+		@Override
+		public final C next() {
+			updateCurrentIterator();
+			return fCurrentIterator.next();
+		}
+	}
+	
+	private class SubsetsIterator extends ATreeIterator
+	{
+		public SubsetsIterator(Node root, ArrayList<E> set) {
+			super(root, set);
+		}
+
+		@Override
+		void processNode(Node node, int index) {
+			if(!node.entries.isEmpty())
+			{
+				fCurrentIterator = node.entries.iterator();
+			}
+			
+			//Add node's children to the queue.
+			for(int i=index;i<fSet.size();i++)
+			{
+				final E ielement = fSet.get(i); 
+				final Node ichild = node.children.get(ielement);
+				if(ichild != null)
+				{
+					fQueue.add(new IteratorEntry(ichild, i+1));
+				}
+			}
+		}
+	}
+	
+	private class SupersetsIterator extends ATreeIterator
+	{
+		public SupersetsIterator(Node root, ArrayList<E> set) {
+			super(root, set);
+		}
+
+		@Override
+		void processNode(Node node, int index) {
+			//Get first element, possibly processing node.
+			final E first;
+			if(index == fSet.size())
+			{
+				first = null;
+				
+				if(!node.entries.isEmpty())
+				{
+					fCurrentIterator = node.entries.iterator();
+				}
+			}
+			else
+			{
+				first = fSet.get(index);
+			}
+			
+			//Add node's children to the queue.
+			for(Entry<E,Node> childEntry : node.children.entrySet())
+			{
+				final E childElement = childEntry.getKey();
+				final Node child = childEntry.getValue();
+				
+				if(first == null || childElement.compareTo(first) < 0)
+				{
+					fQueue.add(new IteratorEntry(child,index));
+				}
+				else if(childElement.compareTo(first) == 0)
+				{
+					fQueue.add(new IteratorEntry(child,index+1));
+				}
+			}
+		}
+	}
 	
 }
