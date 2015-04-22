@@ -32,6 +32,10 @@ import containmentcache.IContainmentCache;
 @NotThreadSafe
 public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements IContainmentCache<E,C>{
 	
+	/*
+	 * Maximum number of elements in universe due to possible overflow errors
+	 * caused by recursive function calls.
+	 */
 	private static final int MAX_ELEMENTS = 2500;
 	
 	private final E ROOT_VALUE = null;
@@ -404,6 +408,12 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 		}
 	}
 	
+	/**
+	 * Tree iterator that is forced to follow elements from the given set
+	 * in order to end up on subsets.
+	 * 
+	 * @author afrechet
+	 */
 	private class SubsetsIterator extends ATreeIterator
 	{
 		public SubsetsIterator(Node root, ArrayList<E> set) {
@@ -430,6 +440,12 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 		}
 	}
 	
+	/**
+	 * Tree iterator that follows any element as long as it eventually visits all
+	 * the ones from its given set, to end up on subsets of the latter.
+	 * 
+	 * @author afrechet
+	 */
 	private class SupersetsIterator extends ATreeIterator
 	{
 		public SupersetsIterator(Node root, ArrayList<E> set) {
@@ -438,6 +454,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 
 		@Override
 		void processNode(Node node, int index) {
+			
 			//Get first element, possibly processing node.
 			final E first;
 			if(index == fSet.size())

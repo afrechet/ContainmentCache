@@ -23,11 +23,14 @@ import containmentcache.util.NestedIterator;
 
 /**
  * A simple bitset containment cache that represents sets as bitsets and uses the integer representation
- * of these bitsets to limit the number of sub/supersets to search. 
+ * of these bitsets to limit the number sets to search for sub/supersets. 
  * 
  * Given a query set, we get its bitset representation and corresponding integer number, and then can quickly find
  * all entries with bitset integer number larger (or smaller) than the query's. This allows us to get a superset of all
- * supersets (or subsets), which we can filter to exactly get the sets we are looking for.
+ * supersets (or subsets), which we then completely process and filter to exactly get the sets we are looking for.
+ * 
+ * We do not actually compute the integer number representation of bitset (to avoid overflow), and instead perform operations
+ * on the bitsets directly.
  * 
  * @author afrechet
  * @param <E> - the elements the sets.
