@@ -24,12 +24,15 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.junit.Test;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Lists;
 
 /**
  * Tests for containment caches.
  * @author afrechet
  */
 public abstract class AContainmentCacheTests {
+	
+	private final static Set<Integer> UNIVERSE = Collections.unmodifiableSet(new HashSet<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8,9,10)));
 	
 	/**
 	 * Factory method for the containment cache to be tested.
@@ -38,9 +41,14 @@ public abstract class AContainmentCacheTests {
 	 */
 	protected abstract <E extends Comparable<E>,C extends ICacheEntry<E>> IContainmentCache<E,C> getCache(Set<E> universe);
 	
+	
+	/**
+	 * @param elements - integer elements.
+	 * @return the set containing the given elements.
+	 */
 	private CacheSet<Integer> makeSet(int... elements)
 	{
-		Set<Integer> set = new HashSet<Integer>();
+		final Set<Integer> set = new HashSet<Integer>();
 		for(int element : elements)
 		{
 			set.add(element);
@@ -48,7 +56,6 @@ public abstract class AContainmentCacheTests {
 		return new CacheSet<Integer>(set);
 	}
 	
-	private final static Set<Integer> UNIVERSE = Collections.unmodifiableSet(new HashSet<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8,9,10)));
 	
 	/**
 	 * Creation tests.
@@ -63,15 +70,15 @@ public abstract class AContainmentCacheTests {
 		
 		//Empty tree does not contain empty set.
 		ICacheEntry<Integer> emptySet = makeSet();
-		assertTrue(cache.getSubsets(emptySet).isEmpty());
-		assertTrue(cache.getSupersets(emptySet).isEmpty());
+		assertTrue(Lists.newLinkedList(cache.getSubsets(emptySet)).isEmpty());
+		assertTrue(Lists.newLinkedList(cache.getSupersets(emptySet)).isEmpty());
 		assertFalse(cache.contains(emptySet));
 		
 		//Empty tree does not contain any subset.
-		assertTrue(cache.getSubsets(makeSet(1,2,3)).isEmpty());
+		assertTrue(Lists.newLinkedList(cache.getSubsets(makeSet(1,2,3))).isEmpty());
 		
 		//Empty tree does not contain any superset.
-		assertTrue(cache.getSupersets(makeSet(1,2,3)).isEmpty());
+		assertTrue(Lists.newLinkedList(cache.getSupersets(makeSet(1,2,3))).isEmpty());
 	}
 	
 	/**
@@ -89,23 +96,23 @@ public abstract class AContainmentCacheTests {
 		Collection<ICacheEntry<Integer>> subsets;
 		Collection<ICacheEntry<Integer>> supersets;
 		
-		subsets = cache.getSubsets(S);
+		subsets = Lists.newLinkedList(cache.getSubsets(S));
 		assertEquals(subsets.size(),1);
 		assertTrue(subsets.contains(S));
-		supersets = cache.getSupersets(S);
+		supersets = Lists.newLinkedList(cache.getSupersets(S));
 		assertEquals(supersets.size(),1);
 		assertTrue(supersets.contains(S));
 		
 		ICacheEntry<Integer> R = makeSet(1,2,3,4);
 		cache.add(R);
 		
-		subsets = cache.getSubsets(R);
+		subsets = Lists.newLinkedList(cache.getSubsets(R));
 		assertEquals(subsets.size(),2);
 		assertEquals(cache.getNumberSubsets(R),subsets.size());
 		assertTrue(subsets.contains(S));
 		assertTrue(subsets.contains(R));
 		
-		supersets = cache.getSupersets(S);
+		supersets = Lists.newLinkedList(cache.getSupersets(S));
 		assertEquals(supersets.size(),2);
 		assertEquals(cache.getNumberSupersets(S),supersets.size());
 		assertTrue(supersets.contains(S));
@@ -127,12 +134,12 @@ public abstract class AContainmentCacheTests {
 		
 		assertEquals(1,cache.size());
 		
-		subsets = cache.getSubsets(S);
+		subsets = Lists.newLinkedList(cache.getSubsets(S));
 		assertTrue(subsets.contains(S));
 		assertEquals(subsets.size(),1); 
 		assertEquals(cache.getNumberSubsets(S),subsets.size());
 		
-		supersets = cache.getSupersets(S);
+		supersets = Lists.newLinkedList(cache.getSupersets(S));
 		assertTrue(supersets.contains(S));
 		assertEquals(1,supersets.size());
 		assertEquals(cache.getNumberSupersets(S),supersets.size());
@@ -141,12 +148,12 @@ public abstract class AContainmentCacheTests {
 		
 		assertEquals(1,cache.size());
 		
-		subsets = cache.getSubsets(S);
+		subsets = Lists.newLinkedList(cache.getSubsets(S));
 		assertTrue(subsets.contains(S));
 		assertEquals(subsets.size(),1);
 		assertEquals(subsets.size(),cache.getNumberSubsets(S));
 		
-		supersets = cache.getSupersets(S);
+		supersets = Lists.newLinkedList(cache.getSupersets(S));
 		assertTrue(supersets.contains(S));
 		assertEquals(1,supersets.size());
 		assertEquals(cache.getNumberSupersets(S),supersets.size());
@@ -158,12 +165,12 @@ public abstract class AContainmentCacheTests {
 	{
 		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		Collection<ICacheEntry<Integer>> nosubsets = cache.getSubsets(makeSet(1,2,3,4));
+		final Collection<ICacheEntry<Integer>> nosubsets = Lists.newLinkedList(cache.getSubsets(makeSet(1,2,3,4)));
 		assertTrue(nosubsets.isEmpty());
 		
 		ICacheEntry<Integer> s1 = makeSet(1,2);
 		cache.add(s1);
-		Collection<ICacheEntry<Integer>> onesubsets = cache.getSubsets(makeSet(1,2,3,4));
+		final Collection<ICacheEntry<Integer>> onesubsets = Lists.newLinkedList(cache.getSubsets(makeSet(1,2,3,4)));
 		assertEquals(onesubsets.size(),1);
 		assertTrue(onesubsets.contains(s1));
 		assertEquals(cache.getNumberSubsets(makeSet(1,2,3,4)),onesubsets.size());
@@ -174,12 +181,12 @@ public abstract class AContainmentCacheTests {
 	{
 		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		Collection<ICacheEntry<Integer>> nosupersets = cache.getSupersets(makeSet(1,2));
+		final Collection<ICacheEntry<Integer>> nosupersets = Lists.newLinkedList(cache.getSupersets(makeSet(1,2)));
 		assertTrue(nosupersets.isEmpty());
 		
 		ICacheEntry<Integer> s1 = makeSet(1,2,3,4);
 		cache.add(s1);
-		Collection<ICacheEntry<Integer>> onesubsets = cache.getSupersets(makeSet(1,2));
+		final Collection<ICacheEntry<Integer>> onesubsets = Lists.newLinkedList(cache.getSupersets(makeSet(1,2)));
 		int numsupersets = cache.getNumberSupersets(makeSet(1,2));
 		assertEquals(numsupersets,1);
 		assertEquals(onesubsets.size(),numsupersets);
@@ -191,12 +198,12 @@ public abstract class AContainmentCacheTests {
 	{
 		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 	
-		ICacheEntry<Integer> s1 = makeSet(1,2);
+		final ICacheEntry<Integer> s1 = makeSet(1,2);
 		cache.add(s1);	
-		ICacheEntry<Integer> s2 = makeSet(2,3);
+		final ICacheEntry<Integer> s2 = makeSet(2,3);
 		cache.add(s2);
 		
-		Collection<ICacheEntry<Integer>> subsets = cache.getSubsets(makeSet(1,2,3,4));		
+		final Collection<ICacheEntry<Integer>> subsets = Lists.newLinkedList(cache.getSubsets(makeSet(1,2,3,4)));		
 		int numsubsets = cache.getNumberSubsets(makeSet(1,2,3,4));
 		
 		assertEquals(numsubsets,2);
@@ -210,12 +217,12 @@ public abstract class AContainmentCacheTests {
 	{
 		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 	
-		ICacheEntry<Integer> s1 = makeSet(1);
+		final ICacheEntry<Integer> s1 = makeSet(1);
 		cache.add(s1);	
-		ICacheEntry<Integer> s2 = makeSet(1,2);
+		final ICacheEntry<Integer> s2 = makeSet(1,2);
 		cache.add(s2);
 		
-		Collection<ICacheEntry<Integer>> subsets = cache.getSubsets(makeSet(1,2,3,4));
+		final Collection<ICacheEntry<Integer>> subsets = Lists.newLinkedList(cache.getSubsets(makeSet(1,2,3,4)));
 		
 		assertEquals(subsets.size(),2);
 		assertTrue(subsets.contains(s1));
@@ -227,12 +234,13 @@ public abstract class AContainmentCacheTests {
 	{
 		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		ICacheEntry<Integer> s1 = makeSet(1,2);
+		final ICacheEntry<Integer> s1 = makeSet(1,2);
 		cache.add(s1);	
-		ICacheEntry<Integer> s2 = makeSet(1,2,3);
+		final ICacheEntry<Integer> s2 = makeSet(1,2,3);
 		cache.add(s2);
 		
-		Collection<ICacheEntry<Integer>> supersets = cache.getSupersets(makeSet(1));
+		final Collection<ICacheEntry<Integer>> supersets = Lists.newLinkedList(cache.getSupersets(makeSet(1)));
+		
 		
 		assertEquals(supersets.size(),2);
 		assertTrue(supersets.contains(s1));
@@ -247,7 +255,7 @@ public abstract class AContainmentCacheTests {
 	{
 		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		ICacheEntry<Integer> S = makeSet(1,2,3);
+		final ICacheEntry<Integer> S = makeSet(1,2,3);
 		
 		cache.add(S);
 		assertEquals(cache.size(), 1);
@@ -317,19 +325,19 @@ public abstract class AContainmentCacheTests {
 			//Test addition.
 			cache.add(set);
 			assertTrue(cache.contains(set));
-			assertTrue(cache.getSubsets(set).contains(set));
-			assertTrue(cache.getSupersets(set).contains(set));
-			int size = cache.size();
+			assertTrue(Lists.newLinkedList(cache.getSubsets(set)).contains(set));
+			assertTrue(Lists.newLinkedList(cache.getSupersets(set)).contains(set));
+			final int size = cache.size();
 			
 			//Test subsets
-			final Collection<ICacheEntry<Integer>> subsets = cache.getSubsets(set);
+			final Collection<ICacheEntry<Integer>> subsets = Lists.newLinkedList(cache.getSubsets(set));
 			
 			//Test number subsets
 			final int numsubsets = cache.getNumberSubsets(set);
 			assertEquals(subsets.size(), numsubsets);
 			
 			//Test supersets
-			final Collection<ICacheEntry<Integer>> supersets = cache.getSupersets(set);
+			final Collection<ICacheEntry<Integer>> supersets = Lists.newLinkedList(cache.getSupersets(set));
 			
 			//Test number supersets
 			final int numsupersets = cache.getNumberSupersets(set);
@@ -339,8 +347,8 @@ public abstract class AContainmentCacheTests {
 			//Test removal.
 			cache.remove(set);
 			assertFalse(cache.contains(set));
-			assertFalse(cache.getSubsets(set).contains(set));
-			assertFalse(cache.getSupersets(set).contains(set));
+			assertFalse(Lists.newLinkedList(cache.getSubsets(set)).contains(set));
+			assertFalse(Lists.newLinkedList(cache.getSupersets(set)).contains(set));
 			assertEquals(cache.size(), size-1);
 		}
 		watch.stop();

@@ -1,9 +1,10 @@
 package containmentcache.decorators;
 
-import java.util.Set;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import net.jcip.annotations.ThreadSafe;
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
 
@@ -15,6 +16,7 @@ import containmentcache.IContainmentCache;
  * @param <E> - type of elements in set representing entry.
  * @param <C> - type of cache entry.
  */
+@ThreadSafe
 public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> implements IContainmentCache<E, C> {
 
 	private final IContainmentCache<E,C> fCache;
@@ -37,20 +39,11 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 	
 	/**
-	 * Lock the decorator's read lock, 
-	 * to allow for a coherent read state.
+	 * @return the decorator's read lock to allow entry to the data structure, and most importantly lock when using iterable coming from the data structure.
 	 */
-	public void readLock()
+	public Lock getReadLock()
 	{
-		fLock.readLock().lock();
-	}
-	
-	/**
-	 * Unlock the decorator's read lock.
-	 */
-	public void readUnlock()
-	{
-		fLock.readLock().unlock();
+		return fLock.readLock();
 	}
 	
 	@Override
@@ -94,7 +87,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public Set<C> getSubsets(C set) {
+	public Iterable<C> getSubsets(C set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -120,7 +113,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public Set<C> getSupersets(C set) {
+	public Iterable<C> getSupersets(C set) {
 		fLock.readLock().lock();
 		try
 		{

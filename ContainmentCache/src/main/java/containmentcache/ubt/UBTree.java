@@ -5,11 +5,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 
+import net.jcip.annotations.NotThreadSafe;
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
 
@@ -24,6 +27,7 @@ import containmentcache.IContainmentCache;
  * @param <E> - elements in the tree.
  * @param <T> - the type of additional content in cache entries.
  */
+@NotThreadSafe
 public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements IContainmentCache<E,C>{
 	
 	private static final int MAX_ELEMENTS = 2500;
@@ -189,96 +193,196 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	}
 	
 	@Override
-	public HashSet<C> getSubsets(C set)
+	public Iterable<C> getSubsets(C set)
 	{
-		ArrayList<E> S = getArray(set);
-		return getSubsets(S, 0, fRoot);
+		return new Iterable<C>(){
+			@Override
+			public Iterator<C> iterator() {
+				return new SubsetsIterator(fRoot, getArray(set));
+			}};
 	}
+	
 	/**
-	 * @param set - set of elements.
-	 * @param s - index in set of elements.
-	 * @param root - root node.
-	 * @return the cache sets that are subsets of given set[s:] for given index s starting at given root node.
+	 * Container class for the two types of UBTree iterators.
+	 * 
+	 * @author afrechet
 	 */
-	private HashSet<C> getSubsets(ArrayList<E> set, int s, Node root)
+	private class IteratorEntry
 	{
-		final HashSet<C> subsets = new HashSet<C>();
+		private final Node node;
+		private final int index;
 		
-		if(!root.entries.isEmpty())
+		public IteratorEntry(Node n, int i)
 		{
-			subsets.addAll(root.entries);
+			node = n;
+			index = i;
+		}
+	}
+	
+	/**
+	 * Lazily traverses a UBT for subsets.
+	 *  
+	 * @author afrechet
+	 */
+	private class SubsetsIterator implements Iterator<C>
+	{
+		private final ArrayList<E> fSet;
+		private final Queue<IteratorEntry> fQueue;
+		private Iterator<C> fCurrentIterator;
+		
+		/**
+		 * Construct a new subset iterator for the given set starting at the given root.
+		 * @param root - a UBT node at which search for subset must start.
+		 * @param set - a set for which we want to find subsets.
+		 */
+		public SubsetsIterator(Node root, ArrayList<E> set)
+		{
+			fSet = set;
+			
+			//Go breath first in UBT for next node.
+			fQueue = new LinkedList<IteratorEntry>();
+			fQueue.add(new IteratorEntry(root, 0));
+			
+			fCurrentIterator = Collections.emptyIterator();
 		}
 		
-		for(int i=s;i<set.size();i++)
+		//Continue the search for a subset iterator.
+		private void updateCurrentIterator()
 		{
-			final E ielement = set.get(i); 
-			final Node ichild = root.children.get(ielement);
-			if(ichild != null)
+			while(!fQueue.isEmpty() && !fCurrentIterator.hasNext())
 			{
-				final Collection<C> isubsets = getSubsets(set,i+1,ichild);
-				subsets.addAll(isubsets);
+				//Get node from the queue.
+				final IteratorEntry entry = fQueue.remove();
+				final Node root = entry.node;
+				final int index = entry.index;
+				
+				//Process the node.
+				if(!root.entries.isEmpty())
+				{
+					fCurrentIterator = root.entries.iterator();
+				}
+				
+				//Add node's children to the queue.
+				for(int i=index;i<fSet.size();i++)
+				{
+					final E ielement = fSet.get(i); 
+					final Node ichild = root.children.get(ielement);
+					if(ichild != null)
+					{
+						fQueue.add(new IteratorEntry(ichild, i+1));
+					}
+				}
 			}
 		}
 		
-		return subsets;		
+		@Override
+		public boolean hasNext() {
+			updateCurrentIterator();
+			return fCurrentIterator.hasNext();
+		}
+
+		@Override
+		public C next() {
+			updateCurrentIterator();
+			return fCurrentIterator.next();
+		}
 	}
 	
 	@Override
-	public HashSet<C> getSupersets(C set)
+	public Iterable<C> getSupersets(C set)
 	{
-		ArrayList<E> S = getArray(set);
-		return getSupersets(S, 0, fRoot);
+		return new Iterable<C>(){
+			@Override
+			public Iterator<C> iterator() {
+				return new SupersetsIterator(fRoot, getArray(set));
+			}};
 	}
+	
 	/**
-	 * @param set - set of elements.
-	 * @param s - index in set of elements.
-	 * @param root - root node.
-	 * @return the cache sets that are supersets of given set[s:] for given index s starting at given root node.
+	 * Lazily traverses a UBT for supersets.
+	 *  
+	 * @author afrechet
 	 */
-	private HashSet<C> getSupersets(ArrayList<E> set, int s, Node root)
+	private class SupersetsIterator implements Iterator<C>
 	{
-		final HashSet<C> supersets = new HashSet<C>();
+		private final ArrayList<E> fSet;
+		private final Queue<IteratorEntry> fQueue;
+		private Iterator<C> fCurrentIterator;
+		
+		/**
+		 * Construct a new superset iterator for the given set starting at the given root.
+		 * @param root - a UBT node at which search for superset must start.
+		 * @param set - a set for which we want to find supersets.
+		 */
+		public SupersetsIterator(Node root, ArrayList<E> set)
+		{
+			fSet = set;
+			
+			//Go breath first in UBT for next node.
+			fQueue = new LinkedList<IteratorEntry>();
+			fQueue.add(new IteratorEntry(root, 0));
+			
+			fCurrentIterator = Collections.emptyIterator();
+		}
+		
+		//Continue the search for a superset iterator.
+		private void updateCurrentIterator()
+		{
+			while(!fQueue.isEmpty() && !fCurrentIterator.hasNext())
+			{
+				
+				//Get the node from the queue.
+				final IteratorEntry entry = fQueue.remove();
+				final Node root = entry.node;
+				final int index = entry.index;
+				
+				//Get first element, possibly processing node.
+				final E first;
+				if(index == fSet.size())
+				{
+					first = null;
+					
+					if(!root.entries.isEmpty())
+					{
+						fCurrentIterator = root.entries.iterator();
+					}
+				}
+				else
+				{
+					first = fSet.get(index);
+				}
+				
+				//Add node's children to the queue.
+				for(Entry<E,Node> childEntry : root.children.entrySet())
+				{
+					final E childElement = childEntry.getKey();
+					final Node child = childEntry.getValue();
+					
+					if(first == null || childElement.compareTo(first) < 0)
+					{
+						fQueue.add(new IteratorEntry(child,index));
+					}
+					else if(childElement.compareTo(first) == 0)
+					{
+						fQueue.add(new IteratorEntry(child,index+1));
+					}
+				}	
+			}
+		}
+		
+		@Override
+		public boolean hasNext() {
+			updateCurrentIterator();
+			return fCurrentIterator.hasNext();
+		}
 
-		final E first;
-		if(s == set.size())
-		{
-			first = null;
-			
-			if(!root.entries.isEmpty())
-			{
-				supersets.addAll(root.entries);
-			}
+		@Override
+		public C next() {
+			updateCurrentIterator();
+			return fCurrentIterator.next();
 		}
-		else
-		{
-			first = set.get(s);
-		}
-		
-		for(Entry<E,Node> childEntry : root.children.entrySet())
-		{
-			E childElement = childEntry.getKey();
-			Node child = childEntry.getValue();
-			
-			final Collection<C> csupersets;
-			if(first == null || childElement.compareTo(first) < 0)
-			{
-				csupersets = getSupersets(set, s, child);
-			}
-			else if(childElement.compareTo(first) == 0)
-			{
-				csupersets = getSupersets(set, s+1, child);
-			}
-			else
-			{
-				csupersets = new LinkedList<C>();
-			}
-			
-			supersets.addAll(csupersets);	
-		}	
-		
-		return supersets;
 	}
-
+	
 	@Override
 	public int getNumberSubsets(C set) {
 		ArrayList<E> S = getArray(set);

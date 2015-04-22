@@ -1,20 +1,27 @@
 package containmentcache.decorators;
 
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+import net.jcip.annotations.ThreadSafe;
+
+import com.google.common.collect.Iterators;
 
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
 
 /**
- * Thread safe cache decorator that buffers addition to streamline entry to the cache
+ * Thread safe cache decorator that buffers 'add' to streamline read methods to the cache.
+ * 
  * This means most 'read' operations perform a full traversal of the buffer (checking for elements not already
  * contained in the cache) as well as the cache. So it is advised to keep the buffer size small.
  * 
@@ -25,12 +32,14 @@ import containmentcache.IContainmentCache;
  * @param <E> - type of elements in set representing entry.
  * @param <C> - type of cache entry.
  */
+@ThreadSafe
 public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> implements IContainmentCache<E, C> {
 	
 	private final IContainmentCache<E,C> fCache;
 	private final ReadWriteLock fLock;
 	
-	private final BlockingQueue<C> fAddBuffer;
+	//Must be thread safe.
+	private final Set<C> fAddBuffer;
 	private final Semaphore fAddSemaphore;
 	
 	private final ExecutorService fExecutorService;
@@ -41,23 +50,47 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 		return new BufferedThreadSafeContainmentCacheDecorator<E,C>(cache, lock, addsize);
 	}
 	
-	public BufferedThreadSafeContainmentCacheDecorator(final IContainmentCache<E,C> cache, final ReadWriteLock lock, final int addsize)
+	public BufferedThreadSafeContainmentCacheDecorator(final IContainmentCache<E,C> cache, final ReadWriteLock lock, final int addflushsize)
 	{
 		fCache = cache;
 		fLock = lock;
 		
-		fAddBuffer = new LinkedBlockingQueue<C>();
+		fAddBuffer = Collections.newSetFromMap(new ConcurrentHashMap<C, Boolean>());
 		fAddSemaphore = new Semaphore(0);
 		
+		//Submit add thread.
 		fExecutorService = Executors.newFixedThreadPool(1);
-		AddThread addthread = new AddThread(fAddSemaphore, addsize);
+		final AddThread  addthread = new AddThread(addflushsize);
 		fExecutorService.submit(addthread);
+	}
+	
+	/**
+	 * @return the decorator's read lock to allow entry to the data structure, and most importantly lock when using iterable coming from the data structure.
+	 */
+	public Lock getReadLock()
+	{
+		return fLock.readLock();
 	}
 	
 	@Override
 	public void add(C set) {
-		fAddBuffer.add(set);
-		fAddSemaphore.release();
+		
+		fLock.readLock().lock();
+		try
+		{
+			if(!fCache.contains(set))
+			{
+				final boolean newelement = fAddBuffer.add(set);
+				if(newelement)
+				{
+					fAddSemaphore.release();
+				}
+			}
+		}
+		finally
+		{
+			fLock.readLock().unlock();
+		}
 	}
 
 	@Override
@@ -65,8 +98,6 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 		fLock.writeLock().lock();
 		try
 		{
-			fCache.remove(set);
-			
 			final boolean frombuffer = fAddBuffer.remove(set);
 			if(frombuffer)
 			{
@@ -75,6 +106,10 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 				{
 					throw new IllegalStateException("Removed an item from the buffer without a corresponding semaphore permit.");
 				}
+			}
+			else
+			{
+				fCache.remove(set);
 			}
 		}
 		finally
@@ -97,8 +132,7 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 			else
 			{
 				//Check if it is in the buffer.
-				final boolean inbuffer = fAddBuffer.contains(set);
-				return inbuffer;
+				return fAddBuffer.contains(set);
 			}
 		}
 		finally
@@ -108,20 +142,25 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 	}
 
 	@Override
-	public HashSet<C> getSubsets(C set) {
+	public Iterable<C> getSubsets(C set) {
 		fLock.readLock().lock();
 		try
 		{
-			final HashSet<C> subsets = new HashSet<C>(fCache.getSubsets(set));
+			Set<C> buffersubsets = new HashSet<C>();
 			for(C bufferset : fAddBuffer)
 			{
-				if(set.getElements().containsAll(bufferset.getElements()))
+				if(set.getElements().containsAll(bufferset.getElements()) && !fCache.contains(bufferset))
 				{
-					subsets.add(bufferset);
+					buffersubsets.add(bufferset);
 				}
 			}
-			return subsets;
 			
+			return new Iterable<C>(){
+				@Override
+				public Iterator<C> iterator() {
+					
+					return Iterators.concat(fCache.getSubsets(set).iterator(),buffersubsets.iterator());
+				}};
 		}
 		finally
 		{
@@ -153,19 +192,25 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 	}
 
 	@Override
-	public HashSet<C> getSupersets(C set) {
+	public Iterable<C> getSupersets(C set) {
 		fLock.readLock().lock();
 		try
 		{
-			final HashSet<C> supersets = new HashSet<C>(fCache.getSupersets(set));
+			final HashSet<C> buffersupersets = new HashSet<C>();
 			for(C bufferset : fAddBuffer)
 			{
 				if(bufferset.getElements().containsAll(set.getElements()))
 				{
-					supersets.add(bufferset);
+					buffersupersets.add(bufferset);
 				}
 			}
-			return supersets;
+			return new Iterable<C>(){
+				@Override
+				public Iterator<C> iterator() {
+					
+					return Iterators.concat(fCache.getSupersets(set).iterator(),buffersupersets.iterator());
+				}};
+			
 		}
 		finally
 		{
@@ -225,13 +270,11 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 	 */
 	private class AddThread implements Runnable
 	{
-		private final Semaphore fSemaphore;
-		private final int fAddSize;
+		private final int fAddFlushSize;
 		
-		public AddThread(Semaphore semaphore, int addsize)
+		public AddThread(int addflushsize)
 		{
-			fSemaphore = semaphore;
-			fAddSize = addsize;
+			fAddFlushSize = addflushsize;
 		}
 		
 		@Override
@@ -239,33 +282,27 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 		{
 			while(true)
 			{
-				//Acquire the needed number of permits.
+				//Acquire the minimum number of permits.
  				try {
-					fSemaphore.acquire(fAddSize);
+ 					fAddSemaphore.acquire(fAddFlushSize);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 					throw new IllegalStateException("Interrupted while waiting for add thread semaphore.",e);
 				}
+ 				
 				fLock.writeLock().lock();
 				try
 				{
-					//Do not completely empty the buffer to avoid starving other processes.
-					for(int i=0;i<fAddSize;i++)
-					{
-						if(fAddBuffer.isEmpty())
-						{
-							throw new IllegalStateException("Expected non-empty queue.");
-						}
-						
-						final C set;
-						try {
-							set = fAddBuffer.take();
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-							throw new IllegalStateException("Was interrupted while trying to take from the non-empty add queue.",e);
-						}
-						fCache.add(set);
-					}
+					//Flush buffer.
+					
+					/*
+					 * No other thread can alter our state at the moment as we are holding the write lock.
+					 * Might as well empty the buffer and drain permits.
+					 */
+					
+					fCache.addAll(fAddBuffer);
+					fAddBuffer.clear();
+					fAddSemaphore.drainPermits();
 				}
 				finally
 				{

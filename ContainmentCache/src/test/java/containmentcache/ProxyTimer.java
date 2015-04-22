@@ -2,6 +2,7 @@ package containmentcache;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,7 +56,5 @@ public class ProxyTimer implements InvocationHandler{
 		return Collections.unmodifiableMap(stats);
 		
 	}
-	
-	
 	
 }
