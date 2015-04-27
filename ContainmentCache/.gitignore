@@ -10,3 +10,4 @@ version
 .project
 .settings/*
 .gradle/*
+local.properties

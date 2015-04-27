@@ -1,8 +1,7 @@
-package containmentcache;
+package containmentcache.util;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,7 +9,7 @@ import java.util.Map;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 /**
- * Invocation handler that collections walltime of methods.
+ * Invocation handler that collects walltime of methods.
  * @author afrechet
  */
 public class ProxyTimer implements InvocationHandler{
@@ -47,7 +46,7 @@ public class ProxyTimer implements InvocationHandler{
 	}
 	
 	/**
-	 * @return a map taking each method encountered to a statistics collector.
+	 * @return a map taking each method encountered to a statistics collector 
 	 * 
 	 * @see DescriptiveStatistics
 	 */

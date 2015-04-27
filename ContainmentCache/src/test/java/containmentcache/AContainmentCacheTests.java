@@ -26,6 +26,8 @@ import org.junit.Test;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 
+import containmentcache.util.ProxyTimer;
+
 /**
  * Tests for containment caches.
  * @author afrechet

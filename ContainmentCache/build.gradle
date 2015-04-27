@@ -5,6 +5,13 @@ repositories {
 
 apply plugin: 'java'
 
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.3'
+}
+
+//Project properties.
+version = 0.9
+
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
@@ -16,4 +23,54 @@ dependencies {
 	compile 'net.jcip:jcip-annotations:1.0'
 	
 	testCompile 'junit:junit:4.11'
+}
+
+
+
+//Publishing to EARG maven repo.
+
+apply plugin: 'maven-publish'
+
+public String getEARGMavenRepo()
+{
+   Properties properties = new Properties()
+   def propertyFilename = 'local.properties'
+   def propertyFile = project.rootProject.file(propertyFilename)
+   if(!propertyFile.exists()) {
+      println 'Necessary file '+propertyFilename+' was not present, creating an empty version of it!'
+      propertyFile.createNewFile()
+   }
+   properties.load(propertyFile.newDataInputStream())
+   def eargMavenRepo = properties.getProperty('earg.mavenrepo.dir')
+   return eargMavenRepo
+}
+
+task sourceJar(type: Jar) {
+   from sourceSets.main.allJava
+}
+
+publishing {
+
+   repositories {
+       //Local EARG maven repo.   
+       maven {
+          url getEARGMavenRepo()+'/snapshots/'
+       }
+   }
+   
+   publications {
+   
+      maven(MavenPublication) {
+         groupId 'ca.ubc.cs.beta'
+         artifactId 'ContainmentCache'
+         version version
+         
+         from components.java
+         
+         artifact sourceJar {
+            classifier "sources"
+         }
+      }
+   
+   }
 }

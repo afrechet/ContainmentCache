@@ -2,8 +2,6 @@ package containmentcache;
 
 import java.util.Collection;
 
-import net.jcip.annotations.NotThreadSafe;
-
 /**
  * Organizes cache entries ({@link ICacheEntry}) so that it easy to obtain cache entries that are subsets/supersets
  * of a query cache entry (according to the sets of elements they represent). 
