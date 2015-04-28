@@ -17,6 +17,7 @@ import net.jcip.annotations.ThreadSafe;
 import com.google.common.collect.Iterators;
 
 import containmentcache.ICacheEntry;
+import containmentcache.ILockableContainmentCache;
 import containmentcache.IContainmentCache;
 
 /**
@@ -33,7 +34,7 @@ import containmentcache.IContainmentCache;
  * @param <C> - type of cache entry.
  */
 @ThreadSafe
-public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> implements IContainmentCache<E, C> {
+public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implements ILockableContainmentCache<E, C> {
 	
 	private final IContainmentCache<E,C> fCache;
 	private final ReadWriteLock fLock;
@@ -44,13 +45,13 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 	
 	private final ExecutorService fExecutorService;
 	
-	public static <E,C extends ICacheEntry<E>> BufferedThreadSafeContainmentCacheDecorator<E, C> makeBufferedThreadSafe(final IContainmentCache<E, C> cache, final int addsize)
+	public static <E,C extends ICacheEntry<E>> BufferedThreadSafeCacheDecorator<E, C> makeBufferedThreadSafe(final IContainmentCache<E, C> cache, final int addsize)
 	{
 		final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-		return new BufferedThreadSafeContainmentCacheDecorator<E,C>(cache, lock, addsize);
+		return new BufferedThreadSafeCacheDecorator<E,C>(cache, lock, addsize);
 	}
 	
-	public BufferedThreadSafeContainmentCacheDecorator(final IContainmentCache<E,C> cache, final ReadWriteLock lock, final int addflushsize)
+	public BufferedThreadSafeCacheDecorator(final IContainmentCache<E,C> cache, final ReadWriteLock lock, final int addflushsize)
 	{
 		fCache = cache;
 		fLock = lock;
@@ -60,13 +61,12 @@ public class BufferedThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry
 		
 		//Submit add thread.
 		fExecutorService = Executors.newFixedThreadPool(1);
-		final AddThread  addthread = new AddThread(addflushsize);
+		final AddThread addthread = new AddThread(addflushsize);
 		fExecutorService.submit(addthread);
+		fExecutorService.shutdown();
 	}
 	
-	/**
-	 * @return the decorator's read lock to allow entry to the data structure, and most importantly lock when using iterable coming from the data structure.
-	 */
+	@Override
 	public Lock getReadLock()
 	{
 		return fLock.readLock();

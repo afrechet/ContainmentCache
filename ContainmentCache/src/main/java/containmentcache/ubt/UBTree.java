@@ -302,11 +302,11 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 		 * set, which in turn corresponds to the elements encountered in the unique
 		 * path from the root to this node. 
 		 */
-		final Set<C> entries;
+		private final Set<C> entries;
 		//The element corresponding to this node.
-		final E element;
+		private final E element;
 		//The children of this node.
-		final Map<E,Node> children;
+		private final Map<E,Node> children;
 		
 		/**
 		 * Basic tree node.

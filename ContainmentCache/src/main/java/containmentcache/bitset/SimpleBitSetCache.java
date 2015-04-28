@@ -90,19 +90,22 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 		
 	@Override
 	public void add(C set) {
-		final BitSet bitset = getBitSet(set.getElements());
 		
+		final BitSet bitset = getBitSet(set.getElements());
 		final Set<C> bitsetentries = entries.getOrDefault(bitset, new HashSet<C>());
+		
 		if(bitsetentries.isEmpty())
 		{
 			tree.add(bitset);
 		}
+		
 		bitsetentries.add(set);
 		entries.put(bitset, bitsetentries);
 	}
 
 	@Override
 	public void remove(C set) {
+		
 		final BitSet bitset = getBitSet(set.getElements());
 		
 		final Set<C> bitsetentries = entries.get(bitset);
@@ -123,6 +126,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 
 	@Override
 	public boolean contains(C set) {
+		
 		final BitSet bitset = getBitSet(set.getElements());
 		if(entries.containsKey(bitset))
 		{

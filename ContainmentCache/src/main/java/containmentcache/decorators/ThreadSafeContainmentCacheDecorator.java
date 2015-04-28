@@ -6,6 +6,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import net.jcip.annotations.ThreadSafe;
 import containmentcache.ICacheEntry;
+import containmentcache.ILockableContainmentCache;
 import containmentcache.IContainmentCache;
 
 /**
@@ -17,7 +18,7 @@ import containmentcache.IContainmentCache;
  * @param <C> - type of cache entry.
  */
 @ThreadSafe
-public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> implements IContainmentCache<E, C> {
+public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> implements ILockableContainmentCache<E, C> {
 
 	private final IContainmentCache<E,C> fCache;
 	private final ReadWriteLock fLock;
@@ -38,9 +39,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 		return new ThreadSafeContainmentCacheDecorator<E,C>(cache,lock);
 	}
 	
-	/**
-	 * @return the decorator's read lock to allow entry to the data structure, and most importantly lock when using iterable coming from the data structure.
-	 */
+	@Override
 	public Lock getReadLock()
 	{
 		return fLock.readLock();
