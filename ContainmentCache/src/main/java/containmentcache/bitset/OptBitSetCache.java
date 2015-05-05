@@ -1,8 +1,10 @@
 package containmentcache.bitset;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -11,14 +13,18 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
 
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 
 import com.google.common.base.Predicate;
+import com.google.common.collect.ContiguousSet;
+import com.google.common.collect.DiscreteDomain;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Range;
 import com.google.common.collect.SetMultimap;
 
 import containmentcache.ICacheEntry;
@@ -29,6 +35,50 @@ import containmentcache.util.NestedIterator;
 public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainmentCache<E, C> {
 
 	private final List<SetContainer> sets;
+	
+	
+	/**
+	 * @param orderings - a collection of map from the (same) universe of n element to a permutation of [0,1,...,n-1].
+	 * @deprecated
+	 */
+	public OptBitSetCache(Collection<Map<E,Integer>> orderings) {
+		
+		//Check that we are given at least one ordering.
+		if(orderings.isEmpty())
+		{
+			throw new IllegalArgumentException("Must provide at least one ordering.");
+		}
+		
+		//Check that the orderings are all on the same set of elements.
+		if(orderings.stream().map(ordering -> ordering.keySet()).distinct().count() == 1)
+		{
+			throw new IllegalArgumentException("Not all of the orderings are on the same elements.");
+		}
+		
+		//Check that the orderings all map to a permutation of [0,...,n-1].
+		//Assumes previous test passes.
+		final Set<E> domain = orderings.iterator().next().keySet();
+		final Set<Integer> image = ContiguousSet.create(Range.closed(0, domain.size()-1),DiscreteDomain.integers());
+		for(final Map<E,Integer> ordering : orderings)
+		{
+			if(!ordering.values().containsAll(image))
+			{
+				throw new IllegalArgumentException("An ordering does not map elements to (a permutation of) the integer range {0,1,...,n-1}.");
+			}
+		}
+		
+		//Create the container set.
+		sets = new LinkedList<SetContainer>();
+		for(final Map<E,Integer> ordering : orderings)
+		{
+			//TODO improve to use a better implementation of ISortedSet.
+			final ISortedSet<OptBitSet> set = new SlowSortedSet<OptBitSet>(new TreeSet<OptBitSet>());
+			final SetMultimap<OptBitSet, C> entries = HashMultimap.create();
+			final SetContainer container = new SetContainer(set, entries, ordering);
+			sets.add(container);
+		}
+	}
+	
 	
 	@Override
 	public void add(C set) {
@@ -235,7 +285,7 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 	 * 
 	 * @author afrechet
 	 */
-	@Value
+	@RequiredArgsConstructor
 	private class SetContainer
 	{
 		private final ISortedSet<OptBitSet> set;
@@ -294,7 +344,7 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 	 * [10][11][00][11] - grouping into blocks
 	 * {0:1L,1:3L,1:0L,1:3L} - map of block index to block long value.
 	 * 
-	 * The two required operations can be implemented using those block values.
+	 * The two required operations can be implemented quickly using those block values.
 	 * 
 	 * @author afrechet
 	 */
@@ -442,32 +492,116 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 	 * 
 	 * A coarser and simpler version of {@link NavigableSet}. 
 	 * 
-	 * The only additional  optimization is that the {@
+	 * The only additional  optimization is that the {@link #getNumberLarger(Comparable)} and {@link getNumberSmaller(Comparable)} should take constant time.
 	 * 
 	 * @author afrechet
 	 *
 	 * @param <T>
 	 */
-	protected interface ISortedSet<T>
+	private static interface ISortedSet<T extends Comparable<T>>
 	{
 		/**
+		 * @param entry 
+		 * @return an iterable over the entries in the set that are larger or equal to the given entry. 
 		 */
 		public Iterable<T> getLarger(T entry);
+		
+		/**
+		 * @param entry 
+		 * @return an iterable over the entries in the set that are smaller or equal to the given entry. 
+		 */
 		public Iterable<T> getSmaller(T entry);
 		
+		/**
+		 * @param entry 
+		 * @return the number of entries in the set that are larger or equal to the given entry. 
+		 */
 		public int getNumberLarger(T entry);
+		
+		/**
+		 * @param entry 
+		 * @return the number of entries in the set that are smaller or equal to the given entry. 
+		 */
 		public int getNumberSmaller(T entry);
 		
+		/**
+		 * @param entry
+		 */
 		public void add(T entry);
+		
+		/**
+		 * 
+		 * @param entry
+		 */
 		public void remove(T entry);
+		
+		/**
+		 * @param entry
+		 * @return true if and only if the set contains the given entry.
+		 */
 		public boolean contains(T entry);
+		
+		/**
+		 * @return the number of entries in the set.
+		 */
 		public int size();
 	}
 	
-	
-	
-	
-	
-	
+	/**
+	 * An decorator around standard navigable set that implements {@link ISortedSet}.
+	 * 
+	 * Note that {@link #getNumberSmaller(Comparable)} and {@link #getNumberLarger(Comparable)} 
+	 * will loop over all smaller/larger entries to return the size, as confirmed by the implementation
+	 * of the size function in the head/tailset view.
+	 * 
+	 * @author afrechet
+	 *
+	 * @param <T>
+	 */
+	@RequiredArgsConstructor
+	private static class SlowSortedSet<T extends Comparable<T>> implements ISortedSet<T>
+	{
+		private final NavigableSet<T> set;
+		
+		@Override
+		public Iterable<T> getLarger(T entry) {
+			return set.tailSet(entry, true);
+		}
+
+		@Override
+		public Iterable<T> getSmaller(T entry) {
+			return set.headSet(entry, true);
+		}
+
+		@Override
+		public int getNumberLarger(T entry) {
+			return set.tailSet(entry, true).size();
+		}
+
+		@Override
+		public int getNumberSmaller(T entry) {
+			return set.headSet(entry, true).size();
+		}
+
+		@Override
+		public void add(T entry) {
+			set.add(entry);
+		}
+
+		@Override
+		public void remove(T entry) {
+			set.remove(entry);
+		}
+
+		@Override
+		public boolean contains(T entry) {
+			return set.contains(entry);
+		}
+
+		@Override
+		public int size() {
+			return set.size();
+		}
+	}
 
 }
