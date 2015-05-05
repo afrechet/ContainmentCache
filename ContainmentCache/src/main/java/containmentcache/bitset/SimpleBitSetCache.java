@@ -4,7 +4,6 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -15,7 +14,9 @@ import java.util.TreeSet;
 import net.jcip.annotations.NotThreadSafe;
 
 import com.google.common.base.Predicate;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.SetMultimap;
 
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
@@ -32,6 +33,9 @@ import containmentcache.util.NestedIterator;
  * We do not actually compute the integer number representation of bitset (to avoid overflow), and instead perform operations
  * on the bitsets directly.
  * 
+ * First discussed in
+ * Fréchette, Alexandre and Newman, Neil and Leyton-Brown, Kevin. "Solving the Station Repacking Problem" IJCAI. 2015. 
+ * 
  * @author afrechet
  * @param <E> - the elements the sets.
  * @param <T> - the type of additional content in cache entries.
@@ -40,7 +44,7 @@ import containmentcache.util.NestedIterator;
 public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainmentCache<E,C>{
 	
 	//The entries of the data structure, hashed by their bitset representation.
-	private final Map<BitSet,Set<C>> entries;
+	private final SetMultimap<BitSet,C> entries;
 	//The tree of bitset, to organize the sub/superset structure.
 	private final NavigableSet<BitSet> tree;
 	//The element permutation to map sets to bitsets.
@@ -65,7 +69,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 		}
 		
 		perm = new HashMap<E,Integer>(permutation);
-		entries = new HashMap<BitSet,Set<C>>();
+		entries = HashMultimap.create();
 		tree = new TreeSet<BitSet>(new BitSetComparator());
 	}
 	
@@ -83,7 +87,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 			perm.put(element, index++);
 		}
 		
-		entries = new HashMap<BitSet,Set<C>>();
+		entries = HashMultimap.create();
 		tree = new TreeSet<BitSet>(new BitSetComparator());
 	}
 	
@@ -92,15 +96,13 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	public void add(C set) {
 		
 		final BitSet bitset = getBitSet(set.getElements());
-		final Set<C> bitsetentries = entries.getOrDefault(bitset, new HashSet<C>());
+		final Set<C> bitsetentries = entries.get(bitset);
 		
 		if(bitsetentries.isEmpty())
 		{
 			tree.add(bitset);
 		}
-		
 		bitsetentries.add(set);
-		entries.put(bitset, bitsetentries);
 	}
 
 	@Override
@@ -109,18 +111,10 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 		final BitSet bitset = getBitSet(set.getElements());
 		
 		final Set<C> bitsetentries = entries.get(bitset);
-		if(bitsetentries != null)
+		bitsetentries.remove(set);
+		if(bitsetentries.isEmpty())
 		{
-			bitsetentries.remove(set);			
-			if(bitsetentries.isEmpty())
-			{
-				tree.remove(bitset);
-				entries.remove(bitset);
-			}
-			else
-			{
-				entries.put(bitset, bitsetentries);
-			}
+			tree.remove(bitset);
 		}
 	}
 
@@ -159,7 +153,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 		{	 	
 			@Override
 			public Iterator<C> iterator() {
-				return new NestedIterator<C>(subsetsiterator, entries);
+				return new NestedIterator<C>(subsetsiterator, entries.asMap());
 				
 			}
 		};
@@ -200,7 +194,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 		{	 	
 			@Override
 			public Iterator<C> iterator() {
-				return new NestedIterator<C>(supersetsiterator, entries);
+				return new NestedIterator<C>(supersetsiterator, entries.asMap());
 			}
 		};
 	}
