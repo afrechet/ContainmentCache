@@ -6,8 +6,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import net.jcip.annotations.ThreadSafe;
 import containmentcache.ICacheEntry;
-import containmentcache.ILockableContainmentCache;
 import containmentcache.IContainmentCache;
+import containmentcache.ILockableContainmentCache;
 
 /**
  * Decorator that makes a containment cache thread safe through the use of an read/write lock.
@@ -78,6 +78,19 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 		try
 		{
 			return fCache.contains(set);
+		}
+		finally
+		{
+			fLock.readLock().unlock();
+		}
+	}
+	
+	@Override
+	public Iterable<C> getSets() {
+		fLock.readLock().lock();
+		try
+		{
+			return fCache.getSets();
 		}
 		finally
 		{

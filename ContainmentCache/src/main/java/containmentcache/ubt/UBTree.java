@@ -220,6 +220,17 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 			}};
 	}
 	
+
+	@Override
+	public Iterable<C> getSets() {
+		return new Iterable<C>(){
+			@Override
+			public Iterator<C> iterator() {
+				return new SetIterator(fRoot);
+			}};
+	}
+	
+	
 	@Override
 	public int getNumberSubsets(C set) {
 		ArrayList<E> S = getArray(set);
@@ -409,6 +420,32 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	}
 	
 	/**
+	 * Tree iterator that visits all nodes.
+	 * 
+	 * @author afrechet
+	 */
+	private class SetIterator extends ATreeIterator
+	{
+		public SetIterator(Node root) {
+			super(root, null);
+		}
+
+		@Override
+		void processNode(Node node, int index) {
+			if(!node.entries.isEmpty())
+			{
+				fCurrentIterator = node.entries.iterator();
+			}
+			
+			//Add node's children to the queue.
+			for(Node child : node.children.values())
+			{
+				fQueue.add(new IteratorEntry(child, 0));
+			}
+		}
+	}
+	
+	/**
 	 * Tree iterator that is forced to follow elements from the given set
 	 * in order to end up on subsets.
 	 * 
@@ -488,5 +525,5 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 			}
 		}
 	}
-	
+
 }

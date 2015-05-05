@@ -20,6 +20,11 @@ import java.util.Collection;
 public interface IContainmentCache<E,C extends ICacheEntry<E>> {
 	
 	/**
+	 * @return all the sets contained in the containment cache.
+	 */
+	public Iterable<C> getSets();
+	
+	/**
 	 * @param set - set to add to the cache.
 	 */
 	public void add(C set);

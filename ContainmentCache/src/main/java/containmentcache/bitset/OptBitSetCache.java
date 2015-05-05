@@ -36,7 +36,6 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 
 	private final List<SetContainer> sets;
 	
-	
 	/**
 	 * @param orderings - a collection of map from the (same) universe of n element to a permutation of [0,1,...,n-1].
 	 * @deprecated
@@ -139,6 +138,21 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 		}
 	}
 
+	@Override
+	public Iterable<C> getSets() {
+		if(sets.isEmpty())
+		{
+			return Collections.emptySet(); 
+		}
+		else
+		{
+			final SetContainer container = sets.get(0);
+			final SetMultimap<OptBitSet, C> entries = container.entries;
+			return entries.values();
+		}
+	}
+
+	
 	@Override
 	public Iterable<C> getSubsets(C set) {
 		
@@ -603,5 +617,4 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 			return set.size();
 		}
 	}
-
 }

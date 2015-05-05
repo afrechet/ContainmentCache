@@ -142,6 +142,23 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 	}
 
 	@Override
+	public Iterable<C> getSets() {
+		fLock.readLock().lock();
+		try
+		{
+			return new Iterable<C>(){
+				@Override
+				public Iterator<C> iterator() {
+					return Iterators.concat(fCache.getSets().iterator(),fAddBuffer.iterator());
+				}};
+		}
+		finally
+		{
+			fLock.readLock().unlock();
+		}
+	}
+	
+	@Override
 	public Iterable<C> getSubsets(C set) {
 		fLock.readLock().lock();
 		try

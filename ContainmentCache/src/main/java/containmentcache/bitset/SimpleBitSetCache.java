@@ -135,6 +135,18 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	}
 	
 	@Override
+	public Iterable<C> getSets() {
+		return new Iterable<C>()
+				{	 	
+					@Override
+					public Iterator<C> iterator() {
+						return new NestedIterator<C>(tree.iterator(), entries.asMap());
+						
+					}
+				};
+	}
+	
+	@Override
 	public Iterable<C> getSubsets(C set) {
 		
 		final BitSet bs = getBitSet(set.getElements());
