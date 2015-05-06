@@ -6,7 +6,7 @@ import containmentcache.AThreadSafeContainmentCacheTests;
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
 import containmentcache.ILockableContainmentCache;
-import containmentcache.bitset.SimpleBitSetCache;
+import containmentcache.bitset.simple.SimpleBitSetCache;
 
 public class ThreadSafeContainmentCacheDecoratorTests extends AThreadSafeContainmentCacheTests{
 

@@ -34,6 +34,10 @@ import containmentcache.util.ProxyTimer;
  */
 public abstract class AContainmentCacheTests {
 	
+	//Test parameters.
+	private final static boolean CSV_OUTPUT = true;
+	
+	//Test objects.
 	private final static Set<Integer> UNIVERSE = Collections.unmodifiableSet(new HashSet<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8,9,10)));
 	
 	/**
@@ -57,7 +61,6 @@ public abstract class AContainmentCacheTests {
 		}
 		return new CacheSet<Integer>(set);
 	}
-	
 	
 	/**
 	 * Creation tests.
@@ -127,7 +130,7 @@ public abstract class AContainmentCacheTests {
 	{
 		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		ICacheEntry<Integer> S = makeSet(1,2,3);
+		final ICacheEntry<Integer> S = makeSet(1,2,3);
 		
 		cache.add(S);
 		
@@ -208,7 +211,7 @@ public abstract class AContainmentCacheTests {
 		final Collection<ICacheEntry<Integer>> subsets = Lists.newLinkedList(cache.getSubsets(makeSet(1,2,3,4)));		
 		int numsubsets = cache.getNumberSubsets(makeSet(1,2,3,4));
 		
-		assertEquals(numsubsets,2);
+		assertEquals(2,numsubsets);
 		assertEquals(subsets.size(),numsubsets);
 		assertTrue(subsets.contains(s1));
 		assertTrue(subsets.contains(s2));
@@ -293,7 +296,6 @@ public abstract class AContainmentCacheTests {
 		}
 		System.out.println("Universe has "+N+" elements ("+(int) Math.pow(2, N)+" possible sets).");
 		
-		
 		//Create cache and wrap with timer proxy.
 		final IContainmentCache<Integer,ICacheEntry<Integer>> undecoratedcache = getCache(new HashSet<Integer>(universe));
 		final ProxyTimer timer = new ProxyTimer(undecoratedcache);
@@ -304,7 +306,7 @@ public abstract class AContainmentCacheTests {
 		final Stopwatch watch = Stopwatch.createStarted();
 		for(int t=0;t<numtests;t++)
 		{
-			if(t%(numtests/10) < (t-1)%(numtests/10))
+			if(t%(numtests/10) == 0)
 			{
 				System.out.print(((double) t)/((double) numtests)*100.0+"% ("+undecoratedcache.size()+")...");
 			}
@@ -357,15 +359,23 @@ public abstract class AContainmentCacheTests {
 		final long totalduration = watch.elapsed(TimeUnit.MILLISECONDS);
 		
 		System.out.println("");
+		printMethodRuntimes(timer.getMethodStats());
+		System.out.printf("Total time: %s\n",DurationFormatUtils.formatDuration(totalduration, "HH:mm:ss.S"));
 		
+	}
+	
+	private static void printMethodRuntimes(Map<Method,DescriptiveStatistics> stats)
+	{
 		System.out.println("Runtime (ms) statistics:");
 		
-		System.out.printf("%-30s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n","Method","Mean","StdDev","Min","Q25","Median","Q75","Max");
-		
-		//System.out.printf("%s,%s,%s,%s,%s,%s,%s,%s\n","Method","Mean","StdDev","Min","Q25","Median","Q75","Max");
-		
-		final Map<Method,DescriptiveStatistics> stats = timer.getMethodStats();
-		
+		if(CSV_OUTPUT)
+		{
+			System.out.printf("%s,%s,%s,%s,%s,%s,%s,%s\n","Method","Mean","StdDev","Min","Q25","Median","Q75","Max");
+		}
+		else
+		{
+			System.out.printf("%-30s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n","Method","Mean","StdDev","Min","Q25","Median","Q75","Max");
+		}
 		final List<Method> methods = new LinkedList<Method>(stats.keySet());
 		Collections.sort(methods,new Comparator<Method>(){
 			@Override
@@ -377,32 +387,31 @@ public abstract class AContainmentCacheTests {
 		{
 			final DescriptiveStatistics stat = stats.get(method);
 			
-			
-			System.out.printf("%-30s %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f\n",
-					"\""+method.getName()+"\"",
-					stat.getMean(),
-					stat.getStandardDeviation(),
-					stat.getMin(),
-					stat.getPercentile(25),
-					stat.getPercentile(50),
-					stat.getPercentile(75),
-					stat.getMax());
-					
-			/*
-			System.out.printf("%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
-					"\""+method.getName()+"\"",
-					stat.getMean(),
-					stat.getStandardDeviation(),
-					stat.getMin(),
-					stat.getPercentile(25),
-					stat.getPercentile(50),
-					stat.getPercentile(75),
-					stat.getMax());
-			*/
+			if(CSV_OUTPUT)
+			{
+				System.out.printf("%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+						"\""+method.getName()+"\"",
+						stat.getMean(),
+						stat.getStandardDeviation(),
+						stat.getMin(),
+						stat.getPercentile(25),
+						stat.getPercentile(50),
+						stat.getPercentile(75),
+						stat.getMax());
+			}
+			else
+			{
+				System.out.printf("%-30s %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f\n",
+						"\""+method.getName()+"\"",
+						stat.getMean(),
+						stat.getStandardDeviation(),
+						stat.getMin(),
+						stat.getPercentile(25),
+						stat.getPercentile(50),
+						stat.getPercentile(75),
+						stat.getMax());
+			}
 		}
-		
-		System.out.printf("Total time: %s\n",DurationFormatUtils.formatDuration(totalduration, "HH:mm:ss.S"));
-		
 	}
 	
 

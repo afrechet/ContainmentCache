@@ -1,4 +1,4 @@
-package containmentcache.bitset;
+package containmentcache.bitset.simple;
 
 import java.util.BitSet;
 import java.util.Collection;

@@ -1,4 +1,4 @@
-package containmentcache.bitset;
+package containmentcache.bitset.opt;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -7,17 +7,14 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
 
 import lombok.RequiredArgsConstructor;
+import lombok.Value;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.ContiguousSet;
@@ -49,7 +46,8 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 		}
 		
 		//Check that the orderings are all on the same set of elements.
-		if(orderings.stream().map(ordering -> ordering.keySet()).distinct().count() == 1)
+		final int distinctuniversescount = (int) orderings.stream().map(ordering -> ordering.keySet()).distinct().count();
+		if(distinctuniversescount != 1)
 		{
 			throw new IllegalArgumentException("Not all of the orderings are on the same elements.");
 		}
@@ -71,7 +69,9 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 		for(final Map<E,Integer> ordering : orderings)
 		{
 			//TODO improve to use a better implementation of ISortedSet.
-			final ISortedSet<OptBitSet> set = new SlowSortedSet<OptBitSet>(new TreeSet<OptBitSet>());
+			@Deprecated
+			final ISortedSet<OptBitSet> set = new SlowSortedSetDecorator<OptBitSet>(new TreeSet<OptBitSet>());
+			
 			final SetMultimap<OptBitSet, C> entries = HashMultimap.create();
 			final SetContainer container = new SetContainer(set, entries, ordering);
 			sets.add(container);
@@ -85,7 +85,7 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 		//Add to all the sets.
 		for(final SetContainer container : sets)
 		{
-			final ISortedSet<OptBitSet> tree = container.set;
+			final ISortedSet<OptBitSet> setcache = container.set;
 			final SetMultimap<OptBitSet, C> entries = container.entries;
 			final Map<E,Integer> ordering = container.ordering;
 			
@@ -93,7 +93,7 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 			final Set<C> bsentries = entries.get(bs);
 			if(bsentries.isEmpty())
 			{
-				tree.add(bs);
+				setcache.add(bs);
 			}
 			bsentries.add(set);
 		}
@@ -299,7 +299,7 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 	 * 
 	 * @author afrechet
 	 */
-	@RequiredArgsConstructor
+	@Value
 	private class SetContainer
 	{
 		private final ISortedSet<OptBitSet> set;
@@ -342,279 +342,5 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 		}
 	}
 	
-	/**
-	 * Bitset-based structure that performs fundamental containment cache operations. 
-	 * Optimized hence less defensive implementation.
-	 * 
-	 * Conceptual representation is a bitset, but that bitset is segmented into blocks of a fixed size,
-	 * and the long representation of those blocks is preserved. Hence, if the BLOCK_SIZE is 2 and the 
-	 * universe ordering is [a,b,c,d,e,f,g,h] then the following set:
-	 * 
-	 * {a,c,d,g,h}
-	 * 
-	 * would be translated as follows:
-	 * 
-	 * 10110011	- conceptual bit vector
-	 * [10][11][00][11] - grouping into blocks
-	 * {0:1L,1:3L,1:0L,1:3L} - map of block index to block long value.
-	 * 
-	 * The two required operations can be implemented quickly using those block values.
-	 * 
-	 * @author afrechet
-	 */
-	private static class OptBitSet implements Comparable<OptBitSet>
-	{
-		/*
-		 * Size of blocks. Needs to be less than 62 to allow long representation
-		 * of numbers with BLOCK_SIZE bits on a 64-bits architecture.
-		 */
-		private final static int BLOCK_SIZE = 60;
-		/*
-		 * Map that takes a block index i to the long representation 'v' of
-		 * the bit vector for the element with index between i and i+BLOCK_SIZE-1.
-		 * Assumed to be in reverse order of block index.
-		 */
-		private final SortedMap<Integer,Long> blockvalues; 
-
-		public <T> OptBitSet(Set<T> elements, Map<T,Integer> ordering)
-		{
-			blockvalues = new TreeMap<>(Collections.reverseOrder());
-			for(final T element : elements)
-			{
-				final int order = ordering.get(element);
-				final int blockindex = order / BLOCK_SIZE;
-				final int blockbit = order % BLOCK_SIZE;
-				
-				final long blockvalue = blockvalues.getOrDefault(blockindex, 0L) + (1L<<blockbit);
-				blockvalues.put(blockindex, blockvalue);
-			}
-		}
-		
-		/**
-		 * @param bs - an opt bit set.
-		 * @return true if and only if this bitset is a subset of the given bitset.
-		 */
-		public boolean isSubset(OptBitSet bs)
-		{
-			if(blockvalues.size() > bs.blockvalues.size())
-			{
-				return false;
-			}
-			else
-			{
-				final Iterator<Entry<Integer,Long>> myblockvalues = blockvalues.entrySet().iterator();
-				final Iterator<Entry<Integer,Long>> hisblockvalues = bs.blockvalues.entrySet().iterator();
-				
-				//Loop through the smaller optbitset's entries.
-				while(myblockvalues.hasNext())
-				{
-					final Entry<Integer,Long> myblockvalue = myblockvalues.next();
-					final int myblockindex = myblockvalue.getKey();
-					
-					//Find the entry with same block index in the larger optbitset.
-					Entry<Integer,Long> hisblockvalue = null;
-					while(hisblockvalues.hasNext())
-					{
-						final Entry<Integer,Long> temphisblockvalue = hisblockvalues.next();
-						//Return if we have found an entry with the right block index.
-						if(temphisblockvalue.getKey() == myblockindex)
-						{
-							hisblockvalue = temphisblockvalue;
-							break;
-						}
-						else if(temphisblockvalue.getKey() < myblockindex)
-						{
-							//We are past the right block index, we will never find it.
-							return false;
-						}
-					}
-					
-					//We did not find an entry with the right block index, so smaller optbitset has some unseen elements.
-					if(hisblockvalue == null)
-					{
-						return false;
-					}
-					else
-					{
-						//Test that at that block index, the smaller optbitset is a subset of the larger.
-						if((myblockvalue.getValue() & hisblockvalue.getValue()) != myblockvalue.getValue())
-						{
-							return false;
-						}
-					}
-				}
-				
-				//We matched all entries in the smaller optbitset.
-				return true;
-			}
-		}
-		
-		@Override
-		public int compareTo(OptBitSet bs)
-		{
-			final Iterator<Entry<Integer,Long>> myblockvalues = blockvalues.entrySet().iterator();
-			final Iterator<Entry<Integer,Long>> hisblockvalues = bs.blockvalues.entrySet().iterator();
-			
-			//Traverse the blocks.
-			while(myblockvalues.hasNext() && hisblockvalues.hasNext())
-			{
-				final Entry<Integer,Long> myblockvalue = myblockvalues.next();
-				final Entry<Integer,Long> hisblockvalue = hisblockvalues.next();
-				
-				//Compare the block index; if its different, then the one with the larger block index wins.
-				if(myblockvalue.getKey() > hisblockvalue.getKey())
-				{
-					return 1;
-				}
-				else if(myblockvalue.getKey() < hisblockvalue.getKey())
-				{
-					return -1;
-				}
-				else
-				{
-					//Same block index, compare block value; if it is different, then the largest one wins. 
-					if(myblockvalue.getValue() > hisblockvalue.getValue())
-					{
-						return 1;
-					}
-					else if(myblockvalue.getValue() > hisblockvalue.getValue())
-					{
-						return -1;
-					}
-				}
-			}
-			
-			//At least one bitset has been exhausted. If one of them still has entries, it wins.
-			if(myblockvalues.hasNext())
-			{
-				return 1;
-			}
-			else if(hisblockvalues.hasNext())
-			{
-				return -1;
-			}
-			else
-			{
-				return 0;
-			}
-		}
-		
-	}
 	
-	/**
-	 * Provides fundamental data structure to the bitset cache.
-	 * 
-	 * A coarser and simpler version of {@link NavigableSet}. 
-	 * 
-	 * The only additional  optimization is that the {@link #getNumberLarger(Comparable)} and {@link getNumberSmaller(Comparable)} should take constant time.
-	 * 
-	 * @author afrechet
-	 *
-	 * @param <T>
-	 */
-	private static interface ISortedSet<T extends Comparable<T>>
-	{
-		/**
-		 * @param entry 
-		 * @return an iterable over the entries in the set that are larger or equal to the given entry. 
-		 */
-		public Iterable<T> getLarger(T entry);
-		
-		/**
-		 * @param entry 
-		 * @return an iterable over the entries in the set that are smaller or equal to the given entry. 
-		 */
-		public Iterable<T> getSmaller(T entry);
-		
-		/**
-		 * @param entry 
-		 * @return the number of entries in the set that are larger or equal to the given entry. 
-		 */
-		public int getNumberLarger(T entry);
-		
-		/**
-		 * @param entry 
-		 * @return the number of entries in the set that are smaller or equal to the given entry. 
-		 */
-		public int getNumberSmaller(T entry);
-		
-		/**
-		 * @param entry
-		 */
-		public void add(T entry);
-		
-		/**
-		 * 
-		 * @param entry
-		 */
-		public void remove(T entry);
-		
-		/**
-		 * @param entry
-		 * @return true if and only if the set contains the given entry.
-		 */
-		public boolean contains(T entry);
-		
-		/**
-		 * @return the number of entries in the set.
-		 */
-		public int size();
-	}
-	
-	/**
-	 * An decorator around standard navigable set that implements {@link ISortedSet}.
-	 * 
-	 * Note that {@link #getNumberSmaller(Comparable)} and {@link #getNumberLarger(Comparable)} 
-	 * will loop over all smaller/larger entries to return the size, as confirmed by the implementation
-	 * of the size function in the head/tailset view.
-	 * 
-	 * @author afrechet
-	 *
-	 * @param <T>
-	 */
-	@RequiredArgsConstructor
-	private static class SlowSortedSet<T extends Comparable<T>> implements ISortedSet<T>
-	{
-		private final NavigableSet<T> set;
-		
-		@Override
-		public Iterable<T> getLarger(T entry) {
-			return set.tailSet(entry, true);
-		}
-
-		@Override
-		public Iterable<T> getSmaller(T entry) {
-			return set.headSet(entry, true);
-		}
-
-		@Override
-		public int getNumberLarger(T entry) {
-			return set.tailSet(entry, true).size();
-		}
-
-		@Override
-		public int getNumberSmaller(T entry) {
-			return set.headSet(entry, true).size();
-		}
-
-		@Override
-		public void add(T entry) {
-			set.add(entry);
-		}
-
-		@Override
-		public void remove(T entry) {
-			set.remove(entry);
-		}
-
-		@Override
-		public boolean contains(T entry) {
-			return set.contains(entry);
-		}
-
-		@Override
-		public int size() {
-			return set.size();
-		}
-	}
 }
