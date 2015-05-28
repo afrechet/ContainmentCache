@@ -10,7 +10,7 @@ task wrapper(type: Wrapper) {
 }
 
 //Project properties.
-version = 0.9.1
+version = 0.91
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8

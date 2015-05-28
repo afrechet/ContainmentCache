@@ -26,9 +26,21 @@ import com.google.common.collect.SetMultimap;
 
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
+import containmentcache.bitset.simple.SimpleBitSetCache;
 import containmentcache.util.CachedFunctionDecorator;
 import containmentcache.util.NestedIterator;
 
+/**
+ * High-performance version of the {@link SimpleBitSetCache} that uses multiple bitset caches each using
+ * a different permutation of the universe. Data structure choices are also optimized (see {@link OptBitSet} and {@link ISortedSet}).
+ * 
+ * First discussed in
+ * Fréchette, Alexandre and Newman, Neil and Leyton-Brown, Kevin. "Solving the Station Repacking Problem" IJCAI. 2015.
+ * @author afrechet
+ *
+ * @param <E> - the elements the sets.
+ * @param <T> - the type of additional content in cache entries.
+ */
 public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainmentCache<E, C> {
 
 	private final List<SetContainer> sets;

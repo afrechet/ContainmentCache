@@ -25,9 +25,9 @@ import lombok.ToString;
  * 
  * 10110011	- conceptual bit vector
  * [10][11][00][11] - grouping into blocks
- * {0:1L,1:3L,1:0L,1:3L} - map of block index to block long value.
+ * {0:1L,1:3L,2:0L,3:3L} - map of block index to block long value.
  * 
- * The two required operations can be implemented quickly using those block values.
+ * The two required operations can be done quickly using those block values.
  * 
  * @author afrechet
  */
@@ -105,13 +105,11 @@ public class OptBitSet implements Comparable<OptBitSet>
 				{
 					return false;
 				}
-				else
+				//Test that at that block index, the smaller optbitset is a subset of the larger
+				//$$ S \subseteq T \Leftrightarrow S \cap T = S $$ 
+				else if((myblockvalue.getValue() & hisblockvalue.getValue()) != myblockvalue.getValue())
 				{
-					//Test that at that block index, the smaller optbitset is a subset of the larger.
-					if((myblockvalue.getValue() & hisblockvalue.getValue()) != myblockvalue.getValue())
-					{
-						return false;
-					}
+					return false;
 				}
 			}
 			
