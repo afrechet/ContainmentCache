@@ -3,7 +3,6 @@ package containmentcache.bitset.opt;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -16,11 +15,10 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.ContiguousSet;
 import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Iterators;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
 import com.google.common.collect.SetMultimap;
 
@@ -28,7 +26,7 @@ import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
 import containmentcache.bitset.simple.SimpleBitSetCache;
 import containmentcache.util.CachedFunctionDecorator;
-import containmentcache.util.NestedIterator;
+import containmentcache.util.NestedIterables;
 
 /**
  * High-performance version of the {@link SimpleBitSetCache} that uses multiple bitset caches each using
@@ -176,23 +174,9 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 			//Get the subsets from the optimal container.
 			final SetContainer bestcontainer = bestcontaineroptional.get();
 			final OptBitSet bs = new OptBitSet(set.getElements(), bestcontainer.ordering);
-			
-			final Iterator<OptBitSet> subsetiterator = Iterators.filter(
-					bestcontainer.set.getSmaller(bs).iterator(),
-					new Predicate<OptBitSet>(){
-						@Override
-						public boolean apply(OptBitSet smallerbs) {
-							return smallerbs.isSubset(bs);
-						}
-					}
-				);
-			
-			return new Iterable<C>() {
-				@Override
-				public Iterator<C> iterator() {
-					return new NestedIterator<C>(subsetiterator,bestcontainer.entries.asMap());
-				}
-			}; 
+
+			final Iterable<OptBitSet> subsetIterable = Iterables.filter(bestcontainer.set.getSmaller(bs), bitset -> bitset.isSubset(bs));
+			return NestedIterables.nest(subsetIterable, bestcontainer.entries.asMap());
 		}
 		else
 		{
@@ -239,22 +223,8 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 			final SetContainer bestcontainer = bestcontaineroptional.get();
 			final OptBitSet bs = new OptBitSet(set.getElements(), bestcontainer.ordering);
 			
-			final Iterator<OptBitSet> supersetsiterator = Iterators.filter(
-					bestcontainer.set.getLarger(bs).iterator(),
-					new Predicate<OptBitSet>(){
-						@Override
-						public boolean apply(OptBitSet largerbs) {
-							return bs.isSubset(largerbs);
-						}
-					}
-				);
-			
-			return new Iterable<C>() {
-				@Override
-				public Iterator<C> iterator() {
-					return new NestedIterator<C>(supersetsiterator,bestcontainer.entries.asMap());
-				}
-			}; 
+			final Iterable<OptBitSet> supersetIterable = Iterables.filter(bestcontainer.set.getLarger(bs), bitset -> bs.isSubset(bitset));
+			return NestedIterables.nest(supersetIterable, bestcontainer.entries.asMap());
 		}
 		else
 		{
@@ -327,7 +297,6 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 	{
 		return sets.stream().min(Comparator.comparing(new CachedFunctionDecorator<SetContainer,R>(containerfunction)));
 	}
-	
 	
 	/*
 	 * Functions that, for a fixed set, takes a tree container to the number sets

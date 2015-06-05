@@ -4,7 +4,6 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableSet;
@@ -13,14 +12,13 @@ import java.util.TreeSet;
 
 import net.jcip.annotations.NotThreadSafe;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Iterators;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.SetMultimap;
 
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
-import containmentcache.util.NestedIterator;
+import containmentcache.util.NestedIterables;
 
 /**
  * A simple bitset containment cache that represents sets as bitsets and uses the integer representation
@@ -136,39 +134,14 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	
 	@Override
 	public Iterable<C> getSets() {
-		return new Iterable<C>()
-				{	 	
-					@Override
-					public Iterator<C> iterator() {
-						return new NestedIterator<C>(tree.iterator(), entries.asMap());
-						
-					}
-				};
+		return NestedIterables.nest(tree, entries.asMap());
 	}
 	
 	@Override
 	public Iterable<C> getSubsets(C set) {
-		
 		final BitSet bs = getBitSet(set.getElements());
-		
-		final Iterator<BitSet> subsetsiterator = Iterators.filter(
-					tree.headSet(bs, true).iterator(),
-					new Predicate<BitSet>(){
-						@Override
-						public boolean apply(BitSet input) {
-							return isSubsetOrEqualTo(input, bs);
-						}
-					}
-				);
-		
-		return new Iterable<C>()
-		{	 	
-			@Override
-			public Iterator<C> iterator() {
-				return new NestedIterator<C>(subsetsiterator, entries.asMap());
-				
-			}
-		};
+		final Iterable<BitSet> subsetIterable = Iterables.filter(tree.headSet(bs, true), bitset -> isSubsetOrEqualTo(bitset, bs));
+		return NestedIterables.nest(subsetIterable, entries.asMap());
 	}
 
 	@Override
@@ -189,31 +162,13 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 
 	@Override
 	public Iterable<C> getSupersets(C set) {
-		
-		final BitSet bs = getBitSet(set.getElements());
-		
-		final Iterator<BitSet> supersetsiterator = Iterators.filter(
-					tree.tailSet(bs, true).iterator(),
-					new Predicate<BitSet>(){
-						@Override
-						public boolean apply(BitSet input) {
-							return isSubsetOrEqualTo(bs, input);
-						}
-					}
-				);
-		
-		return new Iterable<C>()
-		{	 	
-			@Override
-			public Iterator<C> iterator() {
-				return new NestedIterator<C>(supersetsiterator, entries.asMap());
-			}
-		};
+		final BitSet bs = getBitSet(set.getElements());		
+		final Iterable<BitSet> supersetsIterable = Iterables.filter(tree.headSet(bs, true), bitset -> isSubsetOrEqualTo(bs, bitset));
+		return NestedIterables.nest(supersetsIterable, entries.asMap());
 	}
 
 	@Override
 	public int getNumberSupersets(C set) {
-		
 		int numsupersets = 0;	
 		final BitSet bs = getBitSet(set.getElements());
 		for(BitSet largerbs : tree.tailSet(bs, true))
