@@ -4,23 +4,18 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.time.DurationFormatUtils;
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.junit.Test;
 
 import com.google.common.base.Stopwatch;
@@ -35,7 +30,7 @@ import containmentcache.util.ProxyTimer;
 public abstract class AContainmentCacheTests {
 	
 	//Test parameters.
-	private final static boolean CSV_OUTPUT = true;
+	private final static boolean CSV_OUTPUT = false;
 	
 	//Test objects.
 	private final static Set<Integer> UNIVERSE = Collections.unmodifiableSet(new HashSet<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8,9,10)));
@@ -359,60 +354,12 @@ public abstract class AContainmentCacheTests {
 		final long totalduration = watch.elapsed(TimeUnit.MILLISECONDS);
 		
 		System.out.println("");
-		printMethodRuntimes(timer.getMethodStats());
+		TestUtils.printMethodRuntimes(timer.getMethodStats(),CSV_OUTPUT);
 		System.out.printf("Total time: %s\n",DurationFormatUtils.formatDuration(totalduration, "HH:mm:ss.S"));
 		
 	}
 	
-	private static void printMethodRuntimes(Map<Method,DescriptiveStatistics> stats)
-	{
-		System.out.println("Runtime (ms) statistics:");
-		
-		if(CSV_OUTPUT)
-		{
-			System.out.printf("%s,%s,%s,%s,%s,%s,%s,%s\n","Method","Mean","StdDev","Min","Q25","Median","Q75","Max");
-		}
-		else
-		{
-			System.out.printf("%-30s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n","Method","Mean","StdDev","Min","Q25","Median","Q75","Max");
-		}
-		final List<Method> methods = new LinkedList<Method>(stats.keySet());
-		Collections.sort(methods,new Comparator<Method>(){
-			@Override
-			public int compare(Method o1, Method o2) {
-				return o1.getName().compareTo(o2.getName());
-		}});
-		
-		for(Method method : methods)
-		{
-			final DescriptiveStatistics stat = stats.get(method);
-			
-			if(CSV_OUTPUT)
-			{
-				System.out.printf("%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
-						"\""+method.getName()+"\"",
-						stat.getMean(),
-						stat.getStandardDeviation(),
-						stat.getMin(),
-						stat.getPercentile(25),
-						stat.getPercentile(50),
-						stat.getPercentile(75),
-						stat.getMax());
-			}
-			else
-			{
-				System.out.printf("%-30s %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f %-10.3f\n",
-						"\""+method.getName()+"\"",
-						stat.getMean(),
-						stat.getStandardDeviation(),
-						stat.getMin(),
-						stat.getPercentile(25),
-						stat.getPercentile(50),
-						stat.getPercentile(75),
-						stat.getMax());
-			}
-		}
-	}
+	
 	
 
 }

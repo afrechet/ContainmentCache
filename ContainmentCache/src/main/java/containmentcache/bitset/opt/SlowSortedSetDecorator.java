@@ -41,13 +41,13 @@ public class SlowSortedSetDecorator<T extends Comparable<T>> implements ISortedS
 	}
 
 	@Override
-	public void add(T entry) {
-		set.add(entry);
+	public boolean add(T entry) {
+		return set.add(entry);
 	}
 
 	@Override
-	public void remove(T entry) {
-		set.remove(entry);
+	public boolean remove(T entry) {
+		return set.remove(entry);
 	}
 
 	@Override

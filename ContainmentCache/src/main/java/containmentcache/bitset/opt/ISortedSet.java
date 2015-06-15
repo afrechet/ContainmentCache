@@ -13,7 +13,7 @@ import java.util.NavigableSet;
  *
  * @param <T>
  */
-interface ISortedSet<T extends Comparable<T>>
+public interface ISortedSet<T extends Comparable<T>>
 {
 	/**
 	 * @param entry 
@@ -41,14 +41,15 @@ interface ISortedSet<T extends Comparable<T>>
 	
 	/**
 	 * @param entry
+	 * @return true if this set did not already contain the specified element.
 	 */
-	public void add(T entry);
+	public boolean add(T entry);
 	
 	/**
-	 * 
 	 * @param entry
+	 * @return true if this set contained the specified element.
 	 */
-	public void remove(T entry);
+	public boolean remove(T entry);
 	
 	/**
 	 * @param entry
@@ -60,4 +61,12 @@ interface ISortedSet<T extends Comparable<T>>
 	 * @return the number of entries in the set.
 	 */
 	public int size();
+	
+	/**
+	 * @return true if and only if the set contains no element.
+	 */
+	public default boolean isEmpty()
+	{
+		return this.size() == 0;
+	}
 }

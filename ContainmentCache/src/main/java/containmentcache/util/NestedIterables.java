@@ -32,11 +32,11 @@ public class NestedIterables{
 	 * @param secondaryIteratorsFunction - a function from keys to secondary iterables.
 	 * @return the concatenation of secondary iterables according to the order given by the primary iterator.
 	 */
-	public static <K,T> Iterable<T> nest(Iterable<K> primaryIterable, Function<K,? extends Iterable<T>> secondaryIteratorsFunction){
-		Iterable<Iterable<T>> iterables = Iterables.transform(primaryIterable, key -> secondaryIteratorsFunction.apply(key));
+	public static <K,X> Iterable<X> nest(Iterable<K> primaryIterable, Function<? super K,? extends Iterable<X>> secondaryIteratorsFunction){
+		Iterable<Iterable<X>> iterables = Iterables.transform(primaryIterable, key -> secondaryIteratorsFunction.apply(key));
 		return Iterables.concat(iterables);
 	}
-	public static <K,T> Iterable<T> nest(Iterable<K> primaryIterator, Map<K,? extends Iterable<T>> secondaryIteratorsMap){
+	public static <K,T> Iterable<T> nest(Iterable<K> primaryIterator, Map<? super K,? extends Iterable<T>> secondaryIteratorsMap){
 		return nest(primaryIterator, key -> secondaryIteratorsMap.get(key));
 	}
 	
