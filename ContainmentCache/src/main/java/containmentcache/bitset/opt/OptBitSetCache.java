@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
 
@@ -24,6 +23,7 @@ import com.google.common.collect.SetMultimap;
 
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
+import containmentcache.bitset.opt.redblacktree.RedBlackTree;
 import containmentcache.bitset.simple.SimpleBitSetCache;
 import containmentcache.util.CachedFunctionDecorator;
 import containmentcache.util.NestedIterables;
@@ -45,7 +45,6 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 	
 	/**
 	 * @param orderings - a collection of map from the (same) universe of n element to a permutation of [0,1,...,n-1].
-	 * @deprecated
 	 */
 	public OptBitSetCache(Collection<Map<E,Integer>> orderings) {
 		
@@ -78,10 +77,7 @@ public class OptBitSetCache<E, C extends ICacheEntry<E>> implements IContainment
 		sets = new LinkedList<SetContainer>();
 		for(final Map<E,Integer> ordering : orderings)
 		{
-			//TODO improve to use a better implementation of ISortedSet.
-			@Deprecated
-			final ISortedSet<OptBitSet> set = new SlowSortedSetDecorator<OptBitSet>(new TreeSet<OptBitSet>());
-			
+			final ISortedSet<OptBitSet> set = new RedBlackTree<OptBitSet>();
 			final SetMultimap<OptBitSet, C> entries = HashMultimap.create();
 			final SetContainer container = new SetContainer(set, entries, ordering);
 			sets.add(container);
