@@ -16,7 +16,7 @@ import containmentcache.bitset.opt.OptBitSetCache;
 
 public class OptBitSetCacheTests extends AContainmentCacheTests{
 
-	private static final int NUM_ORDERINGS = 1;
+	private static final int NUM_ORDERINGS = 5;
 	private static final long SEED = 0;
 	
 	@Override

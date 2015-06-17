@@ -163,7 +163,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	@Override
 	public Iterable<C> getSupersets(C set) {
 		final BitSet bs = getBitSet(set.getElements());		
-		final Iterable<BitSet> supersetsIterable = Iterables.filter(tree.headSet(bs, true), bitset -> isSubsetOrEqualTo(bs, bitset));
+		final Iterable<BitSet> supersetsIterable = Iterables.filter(tree.tailSet(bs, true), bitset -> isSubsetOrEqualTo(bs, bitset));
 		return NestedIterables.nest(supersetsIterable, entries.asMap());
 	}
 
