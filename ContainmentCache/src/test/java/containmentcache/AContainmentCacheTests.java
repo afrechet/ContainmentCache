@@ -30,7 +30,7 @@ import containmentcache.util.ProxyTimer;
 public abstract class AContainmentCacheTests {
 	
 	//Test parameters.
-	private final static boolean CSV_OUTPUT = false;
+	private final static boolean CSV_OUTPUT = true;
 	
 	//Test objects.
 	private final static Set<Integer> UNIVERSE = Collections.unmodifiableSet(new HashSet<Integer>(Arrays.asList(0,1,2,3,4,5,6,7,8,9,10)));
@@ -90,7 +90,7 @@ public abstract class AContainmentCacheTests {
 	{
 		final IContainmentCache<Integer,ICacheEntry<Integer>> cache = getCache(UNIVERSE);
 		
-		ICacheEntry<Integer> S = makeSet();
+		final ICacheEntry<Integer> S = makeSet();
 		cache.add(S);
 		
 		Collection<ICacheEntry<Integer>> subsets;
@@ -103,17 +103,17 @@ public abstract class AContainmentCacheTests {
 		assertEquals(supersets.size(),1);
 		assertTrue(supersets.contains(S));
 		
-		ICacheEntry<Integer> R = makeSet(1,2,3,4);
+		final ICacheEntry<Integer> R = makeSet(1,2,3,4);
 		cache.add(R);
 		
 		subsets = Lists.newLinkedList(cache.getSubsets(R));
-		assertEquals(subsets.size(),2);
+		assertEquals(2,subsets.size());
 		assertEquals(cache.getNumberSubsets(R),subsets.size());
 		assertTrue(subsets.contains(S));
 		assertTrue(subsets.contains(R));
 		
 		supersets = Lists.newLinkedList(cache.getSupersets(S));
-		assertEquals(supersets.size(),2);
+		assertEquals(2,supersets.size());
 		assertEquals(cache.getNumberSupersets(S),supersets.size());
 		assertTrue(supersets.contains(S));
 		assertTrue(supersets.contains(R));
