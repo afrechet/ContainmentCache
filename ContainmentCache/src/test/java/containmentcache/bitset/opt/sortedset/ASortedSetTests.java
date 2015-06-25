@@ -1,4 +1,4 @@
-package containmentcache.bitset.opt;
+package containmentcache.bitset.opt.sortedset;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -19,6 +19,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 
 import containmentcache.TestUtils;
+import containmentcache.bitset.opt.sortedset.ISortedSet;
 import containmentcache.util.ProxyTimer;
 
 /**

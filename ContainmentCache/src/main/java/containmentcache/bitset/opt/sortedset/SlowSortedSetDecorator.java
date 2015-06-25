@@ -1,4 +1,4 @@
-package containmentcache.bitset.opt;
+package containmentcache.bitset.opt.sortedset;
 
 import java.util.NavigableSet;
 

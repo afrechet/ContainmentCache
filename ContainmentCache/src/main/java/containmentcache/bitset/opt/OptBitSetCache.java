@@ -23,7 +23,8 @@ import com.google.common.collect.SetMultimap;
 
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
-import containmentcache.bitset.opt.redblacktree.RedBlackTree;
+import containmentcache.bitset.opt.sortedset.ISortedSet;
+import containmentcache.bitset.opt.sortedset.redblacktree.RedBlackTree;
 import containmentcache.bitset.simple.SimpleBitSetCache;
 import containmentcache.util.CachedFunctionDecorator;
 import containmentcache.util.NestedIterables;

@@ -1,4 +1,4 @@
-package containmentcache.bitset.opt.redblacktree;
+package containmentcache.bitset.opt.sortedset.redblacktree;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -11,8 +11,8 @@ import lombok.NonNull;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import containmentcache.bitset.opt.ISortedSet;
-import containmentcache.bitset.opt.redblacktree.Node.Color;
+import containmentcache.bitset.opt.sortedset.ISortedSet;
+import containmentcache.bitset.opt.sortedset.redblacktree.Node.Color;
 import containmentcache.util.NestedIterables;
 
 /**
