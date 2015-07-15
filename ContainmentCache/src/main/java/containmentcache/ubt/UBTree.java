@@ -2,6 +2,7 @@ package containmentcache.ubt;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -21,7 +22,7 @@ import containmentcache.IContainmentCache;
  * 
  * Corresponds to a tree where each node represents a set element, and a path in the tree is a set.
  * 
- * The {@link #getSubsets(ICacheEntry)} and {@link #getSupersets(ICacheEntry)} methods return iterables that will lazily traverse the tree
+ * The {@link IContainmentCache#getSubsets(containmentcache.ICacheEntry)} and {@link IContainmentCache#getSupersets(containmentcache.ICacheEntry)} methods return iterables that will lazily traverse the tree
  * for the next sub/superset. These iterators might be slightly heavyweight has they need to keep track of what has been traversed in the tree. 
  * 
  * @author afrechet
@@ -30,7 +31,7 @@ import containmentcache.IContainmentCache;
  * @param <T> - the type of additional content in cache entries.
  */
 @NotThreadSafe
-public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements IContainmentCache<E,C>{
+public class UBTree<E,C extends ICacheEntry<E>> implements IContainmentCache<E,C>{
 	
 	/*
 	 * Maximum number of elements in universe due to possible overflow errors
@@ -42,12 +43,15 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	
 	private final Node fRoot;
 	private int fSize;
+
+	private final Comparator<E> comparator;
 	
 	/**
 	 * Create an empty tree.
 	 */
-	public UBTree()
+	public UBTree(Comparator<E> comparator)
 	{
+		this.comparator = comparator;
 		fRoot = new Node(ROOT_VALUE);
 		fSize = 0;
 	}
@@ -56,7 +60,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	 * @param set - set of integer.
 	 * @return the given set sorted in array form.
 	 */
-	private ArrayList<E> getArray(C set)
+	private ArrayList<E> getArray(ICacheEntry<E> set)
 	{
 		final int size = set.getElements().size(); 
 		
@@ -74,7 +78,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 			}
 			a.add(e);
 		}
-		Collections.sort(a);
+		Collections.sort(a, comparator);
 		return a;
 	}
 	
@@ -85,7 +89,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	}
 	
 	@Override
-	public boolean contains(C set)
+	public boolean contains(ICacheEntry<E> set)
 	{
 		ArrayList<E> S = getArray(set);
 		return contains(S,0,fRoot,set);
@@ -94,14 +98,14 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	 * @param set - an integer set in sorted array form. 
 	 * @param s - an index in the set array.
 	 * @param root - a tree node.
-	 * @param entry - the cache set entry we are looking for. 
+	 * @param set2 - the cache set entry we are looking for. 
 	 * @return true if there is a path from the given root node following nodes with elements from set[s:] (computed recursively).
 	 */
-	private boolean contains(ArrayList<E> set, int s, Node root, C entry)
+	private boolean contains(ArrayList<E> set, int s, Node root, ICacheEntry<E> set2)
 	{
 		if(s==set.size())
 		{
-			return root.entries.contains(entry);
+			return root.entries.contains(set2);
 		}
 		else
 		{
@@ -113,7 +117,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 			}
 			else
 			{
-				return contains(set,s+1,child,entry);
+				return contains(set,s+1,child,set2);
 			}
 		}
 	}
@@ -199,7 +203,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	}
 	
 	@Override
-	public Iterable<C> getSubsets(C set)
+	public Iterable<C> getSubsets(ICacheEntry<E> set)
 	{
 		return new Iterable<C>(){
 			@Override
@@ -211,7 +215,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	
 	
 	@Override
-	public Iterable<C> getSupersets(C set)
+	public Iterable<C> getSupersets(ICacheEntry<E> set)
 	{
 		return new Iterable<C>(){
 			@Override
@@ -232,7 +236,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	
 	
 	@Override
-	public int getNumberSubsets(C set) {
+	public int getNumberSubsets(ICacheEntry<E> set) {
 		ArrayList<E> S = getArray(set);
 		return getNumberSubsets(S,0,fRoot);
 	}
@@ -256,7 +260,7 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 	
 
 	@Override
-	public int getNumberSupersets(C set) {
+	public int getNumberSupersets(ICacheEntry<E> set) {
 		ArrayList<E> S = getArray(set);
 		return getNumberSupersets(S,0,fRoot);
 	}
@@ -282,11 +286,12 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 			final Node child = childEntry.getValue();
 			
 			final int cnum;
-			if(first == null || childElement.compareTo(first) < 0)
+			int compare = comparator.compare(childElement, first);
+			if(first == null || compare < 0)
 			{
 				cnum = getNumberSupersets(set, s, child);
 			}
-			else if(childElement.compareTo(first) == 0)
+			else if(compare == 0)
 			{
 				cnum = getNumberSupersets(set, s+1, child);
 			}
@@ -513,12 +518,12 @@ public class UBTree<E extends Comparable<E>,C extends ICacheEntry<E>> implements
 			{
 				final E childElement = childEntry.getKey();
 				final Node child = childEntry.getValue();
-				
-				if(first == null || childElement.compareTo(first) < 0)
+				int compare = comparator.compare(childElement, first);
+				if(first == null || compare < 0)
 				{
 					fQueue.add(new IteratorEntry(child,index));
 				}
-				else if(childElement.compareTo(first) == 0)
+				else if(compare == 0)
 				{
 					fQueue.add(new IteratorEntry(child,index+1));
 				}

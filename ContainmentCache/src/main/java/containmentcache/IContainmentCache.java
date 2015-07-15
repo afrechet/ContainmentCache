@@ -49,33 +49,33 @@ public interface IContainmentCache<E,C extends ICacheEntry<E>> {
 	 * @param set - set to check for presence in the cache.
 	 * @return true if and only if the given set is in the cache.
 	 */
-	public boolean contains(C set);
+	public boolean contains(ICacheEntry<E> set);
 	
 	/**
 	 * @param set - set for which to get all present subsets in the cache.
 	 * @return an iterable over every set currently in the cache that is a subset of the given set.
 	 */
-	public Iterable<C> getSubsets(C set);
+	public Iterable<C> getSubsets(ICacheEntry<E> set);
 	
 	/**
 	 * 
 	 * @param set - set for which to get the number of present subsets in the cache.
 	 * @return the number of subsets present in the cache for the given set.
 	 */
-	public int getNumberSubsets(C set);
+	public int getNumberSubsets(ICacheEntry<E> set);
 	
 	/**
 	 * @param set - set for which to get all present supersets in the cache.
 	 * @return an iterable over every set currently in the cache that is a superset of the given set.
 	 */
-	public Iterable<C> getSupersets(C set);
+	public Iterable<C> getSupersets(ICacheEntry<E> set);
 	
 	/**
 	 * 
 	 * @param set - set for which to get the number of present supersets in the cache.
 	 * @return the number of supersets present in the cache for the given set.
 	 */
-	public int getNumberSupersets(C set);
+	public int getNumberSupersets(ICacheEntry<E> set);
 	
 	/**
 	 * @return the number of entries currently in the cache.

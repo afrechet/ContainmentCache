@@ -17,8 +17,8 @@ import net.jcip.annotations.ThreadSafe;
 import com.google.common.collect.Iterators;
 
 import containmentcache.ICacheEntry;
-import containmentcache.ILockableContainmentCache;
 import containmentcache.IContainmentCache;
+import containmentcache.ILockableContainmentCache;
 
 /**
  * Thread safe cache decorator that buffers 'add' to streamline read methods to the cache.
@@ -45,7 +45,7 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 	
 	private final ExecutorService fExecutorService;
 	
-	public static <E,C extends ICacheEntry<E>> BufferedThreadSafeCacheDecorator<E, C> makeBufferedThreadSafe(final IContainmentCache<E, C> cache, final int addsize)
+	public static <E,C extends ICacheEntry<E>> ILockableContainmentCache<E, C> makeBufferedThreadSafe(final IContainmentCache<E, C> cache, final int addsize)
 	{
 		final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 		return new BufferedThreadSafeCacheDecorator<E,C>(cache, lock, addsize);
@@ -119,7 +119,7 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 	}
 
 	@Override
-	public boolean contains(C set) {
+	public boolean contains(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -159,7 +159,7 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 	}
 	
 	@Override
-	public Iterable<C> getSubsets(C set) {
+	public Iterable<C> getSubsets(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -186,7 +186,7 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 	}
 
 	@Override
-	public int getNumberSubsets(C set) {
+	public int getNumberSubsets(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -209,7 +209,7 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 	}
 
 	@Override
-	public Iterable<C> getSupersets(C set) {
+	public Iterable<C> getSupersets(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -236,7 +236,7 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 	}
 
 	@Override
-	public int getNumberSupersets(C set) {
+	public int getNumberSupersets(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{

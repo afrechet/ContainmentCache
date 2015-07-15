@@ -27,6 +27,7 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.junit.Test;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.BiMap;
 
 import containmentcache.util.ProxyTimer;
 
@@ -39,7 +40,7 @@ import containmentcache.util.ProxyTimer;
 public abstract class AThreadSafeContainmentCacheTests extends AContainmentCacheTests {
 
 	@Override
-	protected abstract <E extends Comparable<E>,C extends ICacheEntry<E>> ILockableContainmentCache<E,C> getCache(Set<E> universe);
+	protected abstract <E, C extends ICacheEntry<E>> ILockableContainmentCache<E, C> getCache(BiMap<E, Integer> permutation, Comparator<E> comparator);
 	
 	/**
 	 * Busy thread that creates a random set from the universe, check if a superset is present (simulating work as it is doing so), 
@@ -78,7 +79,7 @@ public abstract class AThreadSafeContainmentCacheTests extends AContainmentCache
 				final List<Integer> list = new ArrayList<Integer>(universe);
 				Collections.shuffle(list,random);
 				final Set<Integer> set = new HashSet<Integer>(list.subList(0, random.nextInt(list.size())));
-				final CacheSet<Integer> entry = new CacheSet<Integer>(set);
+				final SimpleCacheSet<Integer> entry = new SimpleCacheSet<>(set, PERMUTATION);
 				log.info("Entry: {}.",entry);
 				
 				final Lock readlock = cache.getReadLock();
@@ -157,7 +158,7 @@ public abstract class AThreadSafeContainmentCacheTests extends AContainmentCache
 		System.out.println("Universe has "+N+" elements ("+(int) Math.pow(2, N)+" possible sets).");
 		
 		//Create cache and wrap with timer proxy.
-		final ILockableContainmentCache<Integer,ICacheEntry<Integer>> undecoratedcache = getCache(new HashSet<Integer>(universe));
+		final ILockableContainmentCache<Integer,ICacheEntry<Integer>> undecoratedcache = getCache(PERMUTATION, COMPARATOR);
 		final ProxyTimer timer = new ProxyTimer(undecoratedcache);
 		@SuppressWarnings("unchecked")
 		final ILockableContainmentCache<Integer,ICacheEntry<Integer>> cache = (ILockableContainmentCache<Integer,ICacheEntry<Integer>>) Proxy.newProxyInstance(ILockableContainmentCache.class.getClassLoader(), new Class[] {ILockableContainmentCache.class}, timer);

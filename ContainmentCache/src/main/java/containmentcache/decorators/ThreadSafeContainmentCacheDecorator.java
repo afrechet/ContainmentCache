@@ -73,7 +73,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public boolean contains(C set) {
+	public boolean contains(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -99,7 +99,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public Iterable<C> getSubsets(C set) {
+	public Iterable<C> getSubsets(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -112,7 +112,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public int getNumberSubsets(C set) {
+	public int getNumberSubsets(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -125,7 +125,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public Iterable<C> getSupersets(C set) {
+	public Iterable<C> getSupersets(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{
@@ -138,7 +138,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public int getNumberSupersets(C set) {
+	public int getNumberSupersets(ICacheEntry<E> set) {
 		fLock.readLock().lock();
 		try
 		{

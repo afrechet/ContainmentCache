@@ -1,5 +1,6 @@
 package containmentcache.bitset.opt.sortedset;
 
+import java.util.Comparator;
 import java.util.NavigableSet;
 
 /**
@@ -13,7 +14,7 @@ import java.util.NavigableSet;
  *
  * @param <T>
  */
-public interface ISortedSet<T extends Comparable<T>>
+public interface ISortedSet<T>
 {
 	/**
 	 * @param entry 
@@ -28,16 +29,16 @@ public interface ISortedSet<T extends Comparable<T>>
 	public Iterable<T> getSmaller(T entry);
 	
 	/**
-	 * @param entry 
-	 * @return the number of entries in the set that are larger or equal to the given entry. 
+	 * @param entry
+	 * @return the number of entries in the set that are larger or equal to the given entry.
 	 */
-	public int getNumberLarger(T entry);
+	public long getNumberLarger(T entry);
 	
 	/**
-	 * @param entry 
-	 * @return the number of entries in the set that are smaller or equal to the given entry. 
+	 * @param entry
+	 * @return the number of entries in the set that are smaller or equal to the given entry.
 	 */
-	public int getNumberSmaller(T entry);
+	public long getNumberSmaller(T entry);
 	
 	/**
 	 * @param entry
@@ -69,4 +70,6 @@ public interface ISortedSet<T extends Comparable<T>>
 	{
 		return this.size() == 0;
 	}
+	
+	public Comparator<? super T> comparator();
 }

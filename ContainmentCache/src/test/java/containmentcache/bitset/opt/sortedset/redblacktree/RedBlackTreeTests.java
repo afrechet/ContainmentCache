@@ -1,14 +1,16 @@
 package containmentcache.bitset.opt.sortedset.redblacktree;
 
+import java.util.Comparator;
+
 import containmentcache.bitset.opt.sortedset.ASortedSetTests;
 import containmentcache.bitset.opt.sortedset.ISortedSet;
-import containmentcache.bitset.opt.sortedset.redblacktree.RedBlackTree;
 
 public class RedBlackTreeTests extends ASortedSetTests{
 
 	@Override
-	protected <E extends Comparable<E>> ISortedSet<E> getSortedSet() {
-		return new RedBlackTree<E>();
+	protected ISortedSet<Integer> getSortedSet(Comparator<Integer> comparator) {
+		return new RedBlackTree<Integer>(comparator);
 	}
+
 
 }

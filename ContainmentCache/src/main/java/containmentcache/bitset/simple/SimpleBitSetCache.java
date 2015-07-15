@@ -3,16 +3,16 @@ package containmentcache.bitset.simple;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
 
+import lombok.NonNull;
 import net.jcip.annotations.NotThreadSafe;
 
+import com.google.common.collect.BiMap;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.SetMultimap;
 
@@ -45,16 +45,10 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	private final SetMultimap<BitSet,C> entries;
 	//The tree of bitset, to organize the sub/superset structure.
 	private final NavigableSet<BitSet> tree;
-	//The element permutation to map sets to bitsets.
-	private final Map<E,Integer> perm;
+	private final ImmutableBiMap<E, Integer> permutation;
 	
-	public SimpleBitSetCache(Map<E,Integer> permutation)
+	public SimpleBitSetCache(@NonNull BiMap<E, Integer> permutation)
 	{
-		if(permutation == null)
-		{
-			throw new IllegalArgumentException("Cannot create bitset cache with null permutation.");
-		}
-		
 		//Check that permutation is from 0 .. N-1.
 		int N = permutation.size()-1;
 		Collection<Integer> image = permutation.values();
@@ -65,35 +59,15 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 				throw new IllegalArgumentException("Permutation does not map any element to valid index "+i+", must be an invalid permutation.");
 			}
 		}
-		
-		perm = new HashMap<E,Integer>(permutation);
-		entries = HashMultimap.create();
-		tree = new TreeSet<BitSet>(new BitSetComparator());
-	}
-	
-	public SimpleBitSetCache(Set<E> universe)
-	{
-		if(universe == null)
-		{
-			throw new IllegalArgumentException("Cannot create "+this.getClass().getSimpleName()+" with empty universe");
-		}
-		
-		perm = new HashMap<E,Integer>(universe.size());
-		int index = 0;
-		for(E element : universe)
-		{
-			perm.put(element, index++);
-		}
+		this.permutation = ImmutableBiMap.copyOf(permutation);
 		
 		entries = HashMultimap.create();
 		tree = new TreeSet<BitSet>(new BitSetComparator());
 	}
 	
-		
-	@Override
 	public void add(C set) {
 		
-		final BitSet bitset = getBitSet(set.getElements());
+		final BitSet bitset = set.getBitSet();
 		final Set<C> bitsetentries = entries.get(bitset);
 		
 		if(bitsetentries.isEmpty())
@@ -106,7 +80,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	@Override
 	public void remove(C set) {
 		
-		final BitSet bitset = getBitSet(set.getElements());
+		final BitSet bitset = set.getBitSet();
 		
 		final Set<C> bitsetentries = entries.get(bitset);
 		bitsetentries.remove(set);
@@ -117,9 +91,9 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	}
 
 	@Override
-	public boolean contains(C set) {
+	public boolean contains(ICacheEntry<E> set) {
 		
-		final BitSet bitset = getBitSet(set.getElements());
+		final BitSet bitset = set.getBitSet();
 		if(entries.containsKey(bitset))
 		{
 			final Set<C> bitsetentries = entries.get(bitset);
@@ -138,17 +112,17 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	}
 	
 	@Override
-	public Iterable<C> getSubsets(C set) {
-		final BitSet bs = getBitSet(set.getElements());
+	public Iterable<C> getSubsets(ICacheEntry<E> set) {
+		final BitSet bs = set.getBitSet();
 		final Iterable<BitSet> subsetIterable = Iterables.filter(tree.headSet(bs, true), bitset -> isSubsetOrEqualTo(bitset, bs));
 		return NestedIterables.nest(subsetIterable, entries.asMap());
 	}
 
 	@Override
-	public int getNumberSubsets(C set) {
+	public int getNumberSubsets(ICacheEntry<E> set) {
 		int numsubsets = 0;
 		
-		BitSet bs = getBitSet(set.getElements());
+		BitSet bs = set.getBitSet();
 		for(BitSet smallerbs : tree.headSet(bs, true))
 		{
 			if(isSubsetOrEqualTo(smallerbs, bs))
@@ -161,16 +135,16 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	}
 
 	@Override
-	public Iterable<C> getSupersets(C set) {
-		final BitSet bs = getBitSet(set.getElements());		
+	public Iterable<C> getSupersets(ICacheEntry<E> set) {
+		final BitSet bs = set.getBitSet();		
 		final Iterable<BitSet> supersetsIterable = Iterables.filter(tree.tailSet(bs, true), bitset -> isSubsetOrEqualTo(bs, bitset));
 		return NestedIterables.nest(supersetsIterable, entries.asMap());
 	}
 
 	@Override
-	public int getNumberSupersets(C set) {
+	public int getNumberSupersets(ICacheEntry<E> set) {
 		int numsupersets = 0;	
-		final BitSet bs = getBitSet(set.getElements());
+		final BitSet bs = set.getBitSet();
 		for(BitSet largerbs : tree.tailSet(bs, true))
 		{
 			if(isSubsetOrEqualTo(bs, largerbs))
@@ -207,35 +181,6 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
             }
             return 0;
 		}
-	}
-	
-	/**
-	 * @param set - a set of element.
-	 * @return the bit set representing the given set of elements, according to the permutation.
-	 */
-	private BitSet getBitSet(Set<E> set)
-	{
-		if(set == null)
-		{
-			throw new IllegalArgumentException("Cannot create bit set out of null set.");
-		}
-		if(!perm.keySet().containsAll(set))
-		{
-			throw new IllegalArgumentException("Provided set contains element not in the cache's permutation.");
-		}
-		
-		BitSet b = new BitSet(perm.size());
-		for(Entry<E,Integer> permentry : perm.entrySet())
-		{
-			E element = permentry.getKey();
-			int index = permentry.getValue();
-			
-			if(set.contains(element))
-			{
-				b.set(index);
-			}
-		}
-		return b;
 	}
 	
     /**

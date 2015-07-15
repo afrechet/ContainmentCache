@@ -1,12 +1,13 @@
 package containmentcache.bitset.opt.sortedset;
 
+import java.util.Comparator;
 import java.util.TreeSet;
 
 public class AmortizedSortedSetDecoratorTests extends ASortedSetTests{
 
 	@Override
-	protected <E extends Comparable<E>> ISortedSet<E> getSortedSet() {
-		return new AmortizedSortedSetDecorator<E>(new TreeSet<>(),100);
+	protected ISortedSet<Integer> getSortedSet(Comparator<Integer> comparator) {
+		return new AmortizedSortedSetDecorator<>(new TreeSet<>(comparator));
 	}
 
 }

@@ -1,5 +1,6 @@
 package containmentcache.bitset.opt.sortedset;
 
+import java.util.Comparator;
 import java.util.NavigableSet;
 
 import lombok.Value;
@@ -31,12 +32,12 @@ public class SlowSortedSetDecorator<T extends Comparable<T>> implements ISortedS
 	}
 
 	@Override
-	public int getNumberLarger(T entry) {
+	public long getNumberLarger(T entry) {
 		return set.tailSet(entry, true).size();
 	}
 
 	@Override
-	public int getNumberSmaller(T entry) {
+	public long getNumberSmaller(T entry) {
 		return set.headSet(entry, true).size();
 	}
 
@@ -58,5 +59,10 @@ public class SlowSortedSetDecorator<T extends Comparable<T>> implements ISortedS
 	@Override
 	public int size() {
 		return set.size();
+	}
+
+	@Override
+	public Comparator<? super T> comparator() {
+		return set.comparator();
 	}
 }

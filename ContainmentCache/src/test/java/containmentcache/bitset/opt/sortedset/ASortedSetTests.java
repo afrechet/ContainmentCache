@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Proxy;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.NavigableSet;
 import java.util.Random;
 import java.util.TreeSet;
@@ -19,7 +20,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 
 import containmentcache.TestUtils;
-import containmentcache.bitset.opt.sortedset.ISortedSet;
 import containmentcache.util.ProxyTimer;
 
 /**
@@ -31,7 +31,11 @@ public abstract class ASortedSetTests {
 	//Test parameters.
 	private final static boolean CSV_OUTPUT = false;
 	
-	protected abstract <E extends Comparable<E>> ISortedSet<E> getSortedSet();
+	protected abstract ISortedSet<Integer> getSortedSet(Comparator<Integer> comparator);
+	
+	private ISortedSet<Integer> getSortedSet() {
+		return getSortedSet((a, b) -> a.compareTo(b));
+	}
 	
 	@Test
 	public void testEmptySortedSet()
@@ -203,7 +207,7 @@ public abstract class ASortedSetTests {
 			assertTrue(Ordering.natural().isOrdered(smallers));
 			
 			//Test number smallers
-			final int numsmallers = set.getNumberSmaller(element);
+			final long numsmallers = set.getNumberSmaller(element);
 			assertEquals(numsmallers, smallers.size());
 			
 			//Test largers
@@ -217,7 +221,7 @@ public abstract class ASortedSetTests {
 			assertTrue(Ordering.natural().isOrdered(largers));
 			
 			//Test number largers
-			final int numlargers = set.getNumberLarger(element);
+			final long numlargers = set.getNumberLarger(element);
 			assertEquals(numlargers, largers.size());
 			
 			//Test removal.
@@ -235,7 +239,6 @@ public abstract class ASortedSetTests {
 		System.out.println("");
 		TestUtils.printMethodRuntimes(timer.getMethodStats(),CSV_OUTPUT);
 		System.out.printf("Total time: %s\n",DurationFormatUtils.formatDuration(totalduration, "HH:mm:ss.S"));
-		
 	}
 	
 	

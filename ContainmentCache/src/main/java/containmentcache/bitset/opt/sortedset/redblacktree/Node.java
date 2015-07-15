@@ -7,7 +7,7 @@ package containmentcache.bitset.opt.sortedset.redblacktree;
  *
  * @param <T>
  */
-class Node<T extends Comparable<T>> {
+class Node<T> {
 	
 	enum Color
 	{
