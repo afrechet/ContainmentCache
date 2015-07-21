@@ -10,6 +10,7 @@ import java.util.TreeSet;
 import lombok.NonNull;
 import net.jcip.annotations.NotThreadSafe;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableBiMap;
@@ -66,37 +67,32 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	}
 	
 	public void add(C set) {
-		
-		final BitSet bitset = set.getBitSet();
-		final Set<C> bitsetentries = entries.get(bitset);
-		
+		final BitSet bs = getBitSet(set);		
+		final Set<C> bitsetentries = entries.get(bs);
 		if(bitsetentries.isEmpty())
 		{
-			tree.add(bitset);
+			tree.add(bs);
 		}
 		bitsetentries.add(set);
 	}
 
 	@Override
 	public void remove(C set) {
-		
-		final BitSet bitset = set.getBitSet();
-		
-		final Set<C> bitsetentries = entries.get(bitset);
+		final BitSet bs = getBitSet(set);		
+		final Set<C> bitsetentries = entries.get(bs);
 		bitsetentries.remove(set);
 		if(bitsetentries.isEmpty())
 		{
-			tree.remove(bitset);
+			tree.remove(bs);
 		}
 	}
 
 	@Override
 	public boolean contains(ICacheEntry<E> set) {
-		
-		final BitSet bitset = set.getBitSet();
-		if(entries.containsKey(bitset))
+		final BitSet bs = getBitSet(set);		
+		if(entries.containsKey(bs))
 		{
-			final Set<C> bitsetentries = entries.get(bitset);
+			final Set<C> bitsetentries = entries.get(bs);
 			return bitsetentries.contains(set);
 		}
 		else
@@ -113,7 +109,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	
 	@Override
 	public Iterable<C> getSubsets(ICacheEntry<E> set) {
-		final BitSet bs = set.getBitSet();
+		final BitSet bs = getBitSet(set);		
 		final Iterable<BitSet> subsetIterable = Iterables.filter(tree.headSet(bs, true), bitset -> isSubsetOrEqualTo(bitset, bs));
 		return NestedIterables.nest(subsetIterable, entries.asMap());
 	}
@@ -122,7 +118,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	public int getNumberSubsets(ICacheEntry<E> set) {
 		int numsubsets = 0;
 		
-		BitSet bs = set.getBitSet();
+		final BitSet bs = getBitSet(set);		
 		for(BitSet smallerbs : tree.headSet(bs, true))
 		{
 			if(isSubsetOrEqualTo(smallerbs, bs))
@@ -136,7 +132,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 
 	@Override
 	public Iterable<C> getSupersets(ICacheEntry<E> set) {
-		final BitSet bs = set.getBitSet();		
+		final BitSet bs = getBitSet(set);		
 		final Iterable<BitSet> supersetsIterable = Iterables.filter(tree.tailSet(bs, true), bitset -> isSubsetOrEqualTo(bs, bitset));
 		return NestedIterables.nest(supersetsIterable, entries.asMap());
 	}
@@ -144,7 +140,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	@Override
 	public int getNumberSupersets(ICacheEntry<E> set) {
 		int numsupersets = 0;	
-		final BitSet bs = set.getBitSet();
+		final BitSet bs = getBitSet(set);		
 		for(BitSet largerbs : tree.tailSet(bs, true))
 		{
 			if(isSubsetOrEqualTo(bs, largerbs))
@@ -181,6 +177,13 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
             }
             return 0;
 		}
+	}
+	
+	private BitSet getBitSet(ICacheEntry<E> set) {
+		Preconditions.checkNotNull(set);
+		Preconditions.checkNotNull(set.getBitSet());
+		Preconditions.checkArgument(permutation.keySet().containsAll(set.getElements()));
+		return set.getBitSet();
 	}
 	
     /**

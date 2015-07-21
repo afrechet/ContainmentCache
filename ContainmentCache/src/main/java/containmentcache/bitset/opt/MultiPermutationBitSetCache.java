@@ -7,17 +7,21 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.SetMultimap;
+import com.google.common.collect.Sets;
 
 import containmentcache.ICacheEntry;
 import containmentcache.IContainmentCache;
@@ -50,7 +54,16 @@ public class MultiPermutationBitSetCache<E, C extends ICacheEntry<E>> implements
      * The first ordering (i.e. the 0th element of each list MUST be consistent with {@link ICacheEntry#getBitSet}
      * 
      */
-    public <T> MultiPermutationBitSetCache(@NonNull BiMap<E, Integer> canonicalPermutation, List<BiMap<E, Integer>> additionalPermutations, @NonNull ISortedSetFactory<BitSet> sortedSetFactory) {
+    public <T> MultiPermutationBitSetCache(@NonNull BiMap<E, Integer> canonicalPermutation, @NonNull List<BiMap<E, Integer>> additionalPermutations, @NonNull ISortedSetFactory<BitSet> sortedSetFactory) {
+		//Check that the canonicalPermutation maps to a permutation of [0,...,n-1].
+    	Preconditions.checkArgument(Sets.newHashSet(canonicalPermutation.values()).equals(IntStream.range(0, canonicalPermutation.size()).boxed().collect(Collectors.toSet())), "Ordering must map to a permutation of [0,...,n-1].");
+    	
+    	//Check that the orderings are all on the same set of elements as the canonical one i.e. they should all have the same KeySet() and ValueSet()
+		for (BiMap<E, Integer> additionalPermutation : additionalPermutations) {
+			Preconditions.checkArgument(additionalPermutation.keySet().equals(canonicalPermutation.keySet()), "Not all of the orderings are on the same elements");
+			Preconditions.checkArgument(additionalPermutation.values().equals(canonicalPermutation.values()), "Not all of the orderings are on the same elements");
+		}
+		
     	this.canonicalPermutation = ImmutableBiMap.copyOf(canonicalPermutation);
         //Create the container set
         sets = new ArrayList<>();
@@ -77,21 +90,21 @@ public class MultiPermutationBitSetCache<E, C extends ICacheEntry<E>> implements
 
     @Override
     public void add(C set) {
-    	final BitSet bs = set.getBitSet();
+    	final BitSet bs = getBitSet(set);
     	entries.get(bs).add(set);
     	sets.forEach(setContainer-> setContainer.set.add(bs));
     }
 
     @Override
     public void remove(C set) {
-    	final BitSet bs = set.getBitSet();
+    	final BitSet bs = getBitSet(set);
     	entries.get(bs).remove(set);
     	sets.forEach(setContainer-> setContainer.set.remove(bs));
     }
 
     @Override
     public boolean contains(ICacheEntry<E> set) {
-        final BitSet bs = set.getBitSet();
+    	final BitSet bs = getBitSet(set);
         return entries.get(bs).contains(set);
     }
 
@@ -103,7 +116,7 @@ public class MultiPermutationBitSetCache<E, C extends ICacheEntry<E>> implements
 
     @Override
     public Iterable<C> getSubsets(ICacheEntry<E> set) {
-    	final BitSet bs = set.getBitSet();
+    	final BitSet bs = getBitSet(set);
         //Get the set container with smallest number of sets smaller than given set.
         Optional<SetContainer> bestcontaineroptional = getMin(new NumSmallerContainerFunction(bs));
 
@@ -120,7 +133,7 @@ public class MultiPermutationBitSetCache<E, C extends ICacheEntry<E>> implements
     @Override
     public int getNumberSubsets(ICacheEntry<E> set) {
         //Get the set container with smallest number of sets smaller than given set.
-    	final BitSet bs = set.getBitSet();
+    	final BitSet bs = getBitSet(set);
         final Optional<SetContainer> bestcontaineroptional = getMin(new NumSmallerContainerFunction(bs));
 
         if (bestcontaineroptional.isPresent()) {
@@ -139,7 +152,7 @@ public class MultiPermutationBitSetCache<E, C extends ICacheEntry<E>> implements
 
     @Override
     public Iterable<C> getSupersets(ICacheEntry<E> set) {
-    	final BitSet bs = set.getBitSet();
+    	final BitSet bs = getBitSet(set);
 
         //Get the set container with smallest number of sets larger than given set.
         final Optional<SetContainer> bestcontaineroptional = getMin(new NumLargerContainerFunction(bs));
@@ -156,7 +169,7 @@ public class MultiPermutationBitSetCache<E, C extends ICacheEntry<E>> implements
 
     @Override
     public int getNumberSupersets(ICacheEntry<E> set) {
-    	final BitSet bs = set.getBitSet();
+    	final BitSet bs = getBitSet(set);
 
         //Get the set container with smallest number of sets larger than given set.
         final Optional<SetContainer> bestcontaineroptional = getMin(new NumLargerContainerFunction(bs));
@@ -230,6 +243,13 @@ public class MultiPermutationBitSetCache<E, C extends ICacheEntry<E>> implements
     private boolean isSubset(final BitSet a, final BitSet b) {
         return a.stream().allMatch(b::get);
     }
+    
+	private BitSet getBitSet(ICacheEntry<E> set) {
+		Preconditions.checkNotNull(set);
+		Preconditions.checkNotNull(set.getBitSet());
+		Preconditions.checkArgument(canonicalPermutation.keySet().containsAll(set.getElements()));
+		return set.getBitSet();
+	}
 
     /**
      * A comparator that compares bitsets according to an ordering specified by permutation such that the least
