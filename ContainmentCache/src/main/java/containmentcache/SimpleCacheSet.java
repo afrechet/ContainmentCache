@@ -6,6 +6,7 @@ import java.util.Set;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 
 /**
@@ -14,16 +15,15 @@ import com.google.common.collect.ImmutableBiMap;
  * @param <E> - type of elements in cache set entry.
  */
 @EqualsAndHashCode
-@ToString
 public class SimpleCacheSet<E> implements ICacheEntry<E> {
 
 	private final BitSet bitSet;
 	private final ImmutableBiMap<E, Integer> permutation;
 	
-	public SimpleCacheSet(Set<E> elements, ImmutableBiMap<E, Integer> permutation) {
+	public SimpleCacheSet(Set<E> elements, BiMap<E, Integer> permutation) {
 		bitSet = new BitSet();
 		elements.forEach(elem -> bitSet.set(permutation.get(elem)));
-		this.permutation = permutation;
+		this.permutation = ImmutableBiMap.copyOf(permutation);
 	}
 
 	@Override
@@ -34,6 +34,11 @@ public class SimpleCacheSet<E> implements ICacheEntry<E> {
 	@Override
 	public ImmutableBiMap<E, Integer> getPermutation() {
 		return permutation;
+	}
+	
+	@Override
+	public String toString() {
+		return bitSet.toString();
 	}
 	
 }

@@ -164,8 +164,6 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	{
 		@Override
 		public int compare(BitSet bs1, BitSet bs2) {
-			assert bs1.size() == bs2.size();
-			
 			for (int i = bs1.size() - 1; i >= 0; i--) {
                 boolean b1 = bs1.get(i);
                 boolean b2 = bs2.get(i);

@@ -7,8 +7,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
+@Slf4j
 public class TestUtils {
 
 	public static void printMethodRuntimes(Map<Method,DescriptiveStatistics> stats, boolean CSVoutput)
@@ -59,6 +62,32 @@ public class TestUtils {
 						stat.getMax());
 			}
 		}
+	}
+	
+	public static void checkMem() {
+        System.gc();
+        System.gc();
+     	
+        int mb = 1024*1024;
+         
+        //Getting the runtime reference from system
+        Runtime runtime = Runtime.getRuntime();
+         
+        log.info("##### Heap utilization statistics [MB] #####");
+         
+        //Print used memory
+        log.info("Used Memory:"
+            + (runtime.totalMemory() - runtime.freeMemory()) / mb);
+
+        //Print free memory
+        log.info("Free Memory:"
+            + runtime.freeMemory() / mb);
+         
+        //Print total available memory
+        log.info("Total Memory:" + runtime.totalMemory() / mb);
+
+        //Print Maximum available memory
+        log.info("Max Memory:" + runtime.maxMemory() / mb);
 	}
 	
 }

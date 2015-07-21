@@ -328,7 +328,5 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 			}
 		}
 	}
-
-	
 	
 }

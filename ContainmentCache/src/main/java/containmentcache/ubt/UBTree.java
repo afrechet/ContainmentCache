@@ -286,20 +286,18 @@ public class UBTree<E,C extends ICacheEntry<E>> implements IContainmentCache<E,C
 			final Node child = childEntry.getValue();
 			
 			final int cnum;
-			int compare = comparator.compare(childElement, first);
-			if(first == null || compare < 0)
-			{
+			if(first == null) {
 				cnum = getNumberSupersets(set, s, child);
+			} else {
+				int compare = comparator.compare(childElement, first);
+				if (compare < 0) {
+					cnum = getNumberSupersets(set, s, child);
+				} else if (compare == 0) {
+					cnum = getNumberSupersets(set, s+1, child);
+				} else {
+					cnum = 0;
+				}
 			}
-			else if(compare == 0)
-			{
-				cnum = getNumberSupersets(set, s+1, child);
-			}
-			else
-			{
-				cnum = 0;
-			}
-			
 			num += cnum;	
 		}	
 		
@@ -518,14 +516,18 @@ public class UBTree<E,C extends ICacheEntry<E>> implements IContainmentCache<E,C
 			{
 				final E childElement = childEntry.getKey();
 				final Node child = childEntry.getValue();
-				int compare = comparator.compare(childElement, first);
-				if(first == null || compare < 0)
-				{
+				if (first == null) {
 					fQueue.add(new IteratorEntry(child,index));
-				}
-				else if(compare == 0)
-				{
-					fQueue.add(new IteratorEntry(child,index+1));
+				} else {
+					int compare = comparator.compare(childElement, first);
+					if(compare < 0)
+					{
+						fQueue.add(new IteratorEntry(child,index));
+					}
+					else if(compare == 0)
+					{
+						fQueue.add(new IteratorEntry(child,index+1));
+					}
 				}
 			}
 		}
