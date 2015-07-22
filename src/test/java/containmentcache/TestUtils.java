@@ -16,6 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.google.common.collect.Iterables;
+import containmentcache.bitset.simple.SimpleBitSetCache;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
@@ -131,5 +133,9 @@ public class TestUtils {
 	public static List<SimpleCacheSet<Integer>> generateRandomSets(final Random rand, final int numEntries, final BiMap<Integer, Integer> permutation) {
 		return generateRandomBitSets(rand, numEntries, permutation).stream().map(s -> bitSetToSet(s)).map(set -> new SimpleCacheSet<Integer>(set, permutation)).collect(Collectors.toList());
 	}
+
+    public static SimpleCacheSet<Integer> generateRandomSet(final Random rand, final BiMap<Integer, Integer> permutation) {
+        return Iterables.getOnlyElement(generateRandomSets(rand, 1, permutation));
+    }
 	
 }
