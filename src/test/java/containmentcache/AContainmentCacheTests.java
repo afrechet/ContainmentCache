@@ -11,12 +11,11 @@ import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.IntSummaryStatistics;
 import java.util.List;
-import java.util.Queue;
+import java.util.LongSummaryStatistics;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -309,11 +308,11 @@ public abstract class AContainmentCacheTests {
 			}
 			
 			//Add some load to the data structure.
-			List<SimpleCacheSet<Integer>> setsToAdd = generateRandomSets(rand, loadincrement, permutation);
+			List<SimpleCacheSet<Integer>> setsToAdd = TestUtils.generateRandomSets(rand, loadincrement, permutation);
 			setsToAdd.forEach(s -> cache.add(s));
 			
 			//Test a certain set.
-			SimpleCacheSet<Integer> set = Iterables.getOnlyElement(generateRandomSets(rand, 1, permutation));
+			SimpleCacheSet<Integer> set = Iterables.getOnlyElement(TestUtils.generateRandomSets(rand, 1, permutation));
 			
 			//Test addition.
 			cache.add(set);
@@ -352,38 +351,37 @@ public abstract class AContainmentCacheTests {
 		System.out.printf("Total time: %s\n",DurationFormatUtils.formatDuration(totalduration, "HH:mm:ss.S"));
 	}
 	
-    @Test
     @Ignore
+    @Test
     public void usageTest() throws Exception {
         //Parameters
         final long seed = 1;
         final Random rand = new Random(seed);
-        final int N = 2000;
-        final int startingSize = 10000;
-        final int numTests = 1000;
+        final int N = 40;
+        final int startingSize = 1000000;
+        final int numTests = 2000;
         
         final Set<Integer> universe = IntStream.range(0, N).boxed().collect(Collectors.toSet());
         final ImmutableBiMap<Integer,Integer> permutation = PermutationUtils.makePermutation(universe);
         System.out.println("Universe has " + N + " elements (" + (int) Math.pow(2, N) + " possible sets).");
 
         //Create cache and wrap with timer proxy.
-        // TODO:
         final IContainmentCache<Integer, ICacheEntry<Integer>> undecoratedcache = getCache(permutation, COMPARATOR);
         
         log.info("Creating " + startingSize + " elements...");
-        List<BitSet> entries = FileIOHelper.readSerializedObject("/home/newmanne/temp/july14/list");
+//        List<BitSet> entries = FileIOHelper.readSerializedObject("/home/newmanne/temp/july14/list");
 
-//        ArrayList<BitSet> entries = generateRandomBitSets(rand, startingSize, universe);
+        ArrayList<BitSet> entries = TestUtils.generateRandomBitSets(rand, startingSize, permutation);
 //        FileIOHelper.writeSerializedObject("/home/newmanne/temp/july14/list", entries);
         
         log.info("Building up a cache of size " + startingSize + "...");
         final Stopwatch watch = Stopwatch.createStarted();
         for (int i = 0; i < entries.size(); i++) {
-            if (i % (startingSize / 10) == 0) {
+            if (i % (entries.size() / 10) == 0) {
             	double fillPercentage = ((double) i) / ((double) entries.size()) * 100.0;
             	log.info(fillPercentage + "% (" + undecoratedcache.size() + ")...");
             }
-            undecoratedcache.add(new SimpleCacheSet<>(bitSetToSet(entries.get(i)), permutation));
+            undecoratedcache.add(new SimpleCacheSet<>(TestUtils.bitSetToSet(entries.get(i)), permutation));
         }
         log.info("Total time: {}", DurationFormatUtils.formatDuration(watch.elapsed(TimeUnit.MILLISECONDS), "HH:mm:ss.S"));
         watch.reset().start();
@@ -395,9 +393,12 @@ public abstract class AContainmentCacheTests {
         final IContainmentCache<Integer, ICacheEntry<Integer>> cache = (IContainmentCache<Integer, ICacheEntry<Integer>>) Proxy.newProxyInstance(IContainmentCache.class.getClassLoader(), new Class[]{IContainmentCache.class}, timer);
 
         log.info("Making {} elements for the tests", numTests);
-        List<BitSet> testEntries = generateRandomBitSets(rand, numTests, permutation);
+        List<BitSet> testEntries = TestUtils.generateRandomBitSets(rand, numTests, permutation);
         log.info("Running {} tests", numTests);
 
+        final List<Long> times = new ArrayList<>();
+        final List<Integer> foundSupers = new ArrayList<>();
+        final List<Integer> foundSubs = new ArrayList<>();
         for (int t = 0; t < numTests; t++) {
             if (t % (numTests / 10) == 0) {
             	double completionPercentage = ((double) t) / ((double) numTests) * 100.0;
@@ -405,15 +406,35 @@ public abstract class AContainmentCacheTests {
             }
 
             //Test a certain set.
-            ICacheEntry<Integer> set = new SimpleCacheSet<Integer>(bitSetToSet(testEntries.get(t)), permutation);
-
+            ICacheEntry<Integer> set = new SimpleCacheSet<Integer>(TestUtils.bitSetToSet(testEntries.get(t)), permutation);
+            final Stopwatch w = Stopwatch.createStarted();
             //Test addition.
-            cache.add(set);
-            cache.getSubsets(set);
-            cache.getSupersets(set);
-            cache.remove(set);
+            AtomicInteger foundSupersets = new AtomicInteger();
+            AtomicInteger foundSubsets = new AtomicInteger();
+            cache.getSubsets(set).forEach(subset -> {
+            	subset.getBitSet().nextSetBit(0); // some busy work
+            	foundSubsets.incrementAndGet();
+            });
+            cache.getSupersets(set).forEach(superset -> {
+            	superset.getBitSet().nextSetBit(0);
+            	foundSupersets.incrementAndGet();
+            });
+            long elapsed = w.elapsed(TimeUnit.MILLISECONDS);
+            times.add(elapsed);
+            foundSupers.add(foundSupersets.get());
+            foundSubs.add(foundSubsets.get());
         }
         watch.stop();
+        LongSummaryStatistics summaryStatistics = times.stream().mapToLong(l -> l.longValue()).summaryStatistics();
+        IntSummaryStatistics superSummaryStatistics = foundSupers.stream().mapToInt(i -> i.intValue()).summaryStatistics();
+        IntSummaryStatistics subSummaryStatistics = foundSubs.stream().mapToInt(i -> i.intValue()).summaryStatistics();
+        System.out.println("Timing info for iterating through super/subs");
+        System.out.println(summaryStatistics);
+        System.out.println("Superset num found info");
+        System.out.println(superSummaryStatistics);
+        System.out.println("Subset num found info");
+        System.out.println(subSummaryStatistics);
+        
         final long totalduration = watch.elapsed(TimeUnit.MILLISECONDS);
         testEntries.clear();
 
@@ -423,37 +444,6 @@ public abstract class AContainmentCacheTests {
         TestUtils.checkMem();
         System.out.println(cache.toString()); // keep it in scope
     }
-
-	private Set<Integer> bitSetToSet(BitSet bitSet) {
-		return bitSet.stream().boxed().collect(Collectors.toSet());
-	}
-
-
-	private ArrayList<BitSet> generateRandomBitSets(
-			final Random rand,
-			final int numEntries,
-			final BiMap<Integer, Integer> permutation
-			) {
-		Queue<BitSet> q = new LinkedBlockingQueue<>();
-		final AtomicInteger counter = new AtomicInteger();
-		IntStream.range(0, numEntries).parallel().forEach(i -> {
-			if (counter.incrementAndGet() % 10000 == 0) {
-				log.info("Making element {}", counter.get());
-			};
-			BitSet bs = new BitSet();
-			for (int j : permutation.values()) {
-				if (rand.nextBoolean()) {
-					bs.set(j);
-				}
-			}
-			q.add(bs);
-		});
-		return Lists.newArrayList(q);
-	}
-	
-	private List<SimpleCacheSet<Integer>> generateRandomSets(final Random rand, final int numEntries, final BiMap<Integer, Integer> permutation) {
-		return generateRandomBitSets(rand, numEntries, permutation).stream().map(this::bitSetToSet).map(set -> new SimpleCacheSet<Integer>(set, permutation)).collect(Collectors.toList());
-	}
 
 
 }

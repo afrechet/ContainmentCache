@@ -74,7 +74,6 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 	
 	@Override
 	public void add(C set) {
-		
 		fLock.readLock().lock();
 		try
 		{

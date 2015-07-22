@@ -4,7 +4,6 @@ import java.util.BitSet;
 import java.util.Set;
 
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;

@@ -1,0 +1,9 @@
+/build/
+local.properties
+test-output/
+*.iml
+*.classpath
+*.project
+.gradle/
+.settings/
+bin/

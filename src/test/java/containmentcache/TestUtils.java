@@ -1,15 +1,27 @@
 package containmentcache;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+
+import com.google.common.collect.BiMap;
+import com.google.common.collect.Lists;
 
 @Slf4j
 public class TestUtils {
@@ -88,6 +100,36 @@ public class TestUtils {
 
         //Print Maximum available memory
         log.info("Max Memory:" + runtime.maxMemory() / mb);
+	}
+
+	public static Set<Integer> bitSetToSet(BitSet bitSet) {
+		return bitSet.stream().boxed().collect(Collectors.toSet());
+	}
+
+	public static ArrayList<BitSet> generateRandomBitSets(
+			final Random rand,
+			final int numEntries,
+			final BiMap<Integer, Integer> permutation
+			) {
+		Queue<BitSet> q = new LinkedBlockingQueue<>();
+		final AtomicInteger counter = new AtomicInteger();
+		IntStream.range(0, numEntries).parallel().forEach(i -> {
+			if (counter.incrementAndGet() % 10000 == 0) {
+				log.info("Making element {}", counter.get());
+			};
+			BitSet bs = new BitSet();
+			for (int j : permutation.values()) {
+				if (rand.nextBoolean()) {
+					bs.set(j);
+				}
+			}
+			q.add(bs);
+		});
+		return Lists.newArrayList(q);
+	}
+
+	public static List<SimpleCacheSet<Integer>> generateRandomSets(final Random rand, final int numEntries, final BiMap<Integer, Integer> permutation) {
+		return generateRandomBitSets(rand, numEntries, permutation).stream().map(s -> bitSetToSet(s)).map(set -> new SimpleCacheSet<Integer>(set, permutation)).collect(Collectors.toList());
 	}
 	
 }

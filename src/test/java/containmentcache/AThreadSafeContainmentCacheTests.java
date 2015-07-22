@@ -2,11 +2,8 @@ package containmentcache;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -18,6 +15,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +27,10 @@ import org.junit.Test;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.BiMap;
+import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.Iterables;
 
+import containmentcache.util.PermutationUtils;
 import containmentcache.util.ProxyTimer;
 
 /**
@@ -53,13 +55,13 @@ public abstract class AThreadSafeContainmentCacheTests extends AContainmentCache
 	@RequiredArgsConstructor
 	private static class UserThread implements Runnable
 	{
-		private final Collection<Integer> universe;
+		private final BiMap<Integer, Integer> permutation;
 		private final ILockableContainmentCache<Integer,ICacheEntry<Integer>> cache;
 		private final Random random;
 		
-		private boolean run = true;
+		private volatile boolean run = true;
 		
-		private final static int MAXSLEEPTIME = 5000;
+		private final static int MAXSLEEPTIME = 500;
 		
 		/**
 		 * Stop the user thread.
@@ -75,12 +77,7 @@ public abstract class AThreadSafeContainmentCacheTests extends AContainmentCache
 			while(run)
 			{
 				//Generate random set of universe.
-				log.info("Creating random subset from the universe...");
-				final List<Integer> list = new ArrayList<Integer>(universe);
-				Collections.shuffle(list,random);
-				final Set<Integer> set = new HashSet<Integer>(list.subList(0, random.nextInt(list.size())));
-				final SimpleCacheSet<Integer> entry = new SimpleCacheSet<>(set, PERMUTATION);
-				log.info("Entry: {}.",entry);
+				final SimpleCacheSet<Integer> entry = Iterables.getOnlyElement(TestUtils.generateRandomSets(random, 1, permutation));
 				
 				final Lock readlock = cache.getReadLock();
 				
@@ -144,21 +141,18 @@ public abstract class AThreadSafeContainmentCacheTests extends AContainmentCache
 		final Random rand = new Random(seed);
 
 		//Number of consumer threads.
-		final int numconsumers = 500;
+		final int numconsumers = 30;
 		//Cutoff time for experiment in seconds.
-		final int cutoff = 300;
+		final int cutoff = 10;
 		//Size of universe.
-		final int N = 750;
+		final int N = 300;
 		
-		final List<Integer> universe = new ArrayList<Integer>();
-		for(int i=0;i<N;i++)
-		{
-			universe.add(i);
-		}
+		final Set<Integer> universe = IntStream.rangeClosed(0, N-1).boxed().collect(Collectors.toSet());
+		ImmutableBiMap<Integer, Integer> permutation = PermutationUtils.makePermutation(universe);
 		System.out.println("Universe has "+N+" elements ("+(int) Math.pow(2, N)+" possible sets).");
 		
 		//Create cache and wrap with timer proxy.
-		final ILockableContainmentCache<Integer,ICacheEntry<Integer>> undecoratedcache = getCache(PERMUTATION, COMPARATOR);
+		final ILockableContainmentCache<Integer,ICacheEntry<Integer>> undecoratedcache = getCache(permutation, COMPARATOR);
 		final ProxyTimer timer = new ProxyTimer(undecoratedcache);
 		@SuppressWarnings("unchecked")
 		final ILockableContainmentCache<Integer,ICacheEntry<Integer>> cache = (ILockableContainmentCache<Integer,ICacheEntry<Integer>>) Proxy.newProxyInstance(ILockableContainmentCache.class.getClassLoader(), new Class[] {ILockableContainmentCache.class}, timer);
@@ -171,7 +165,7 @@ public abstract class AThreadSafeContainmentCacheTests extends AContainmentCache
 		final ExecutorService executor = Executors.newFixedThreadPool(numconsumers);
 		for(int c=0;c<numconsumers;c++)
 		{
-			final UserThread user = new UserThread(universe, cache, rand);
+			final UserThread user = new UserThread(permutation, cache, rand);
 			users.add(user);
 			executor.submit(user);
 		}
@@ -180,8 +174,7 @@ public abstract class AThreadSafeContainmentCacheTests extends AContainmentCache
 		try {
 			executor.awaitTermination(cutoff, TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
-			e.printStackTrace();
-			throw new IllegalStateException("Executor service was interrupted while awaiting termination.");
+			throw new IllegalStateException("Executor service was interrupted while awaiting termination.", e);
 		}
 		
 		System.out.println("Interrupting user threads ...");
@@ -192,13 +185,6 @@ public abstract class AThreadSafeContainmentCacheTests extends AContainmentCache
 		}
 		
 		executor.shutdownNow();
-		try {
-			executor.awaitTermination(10, TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-			throw new IllegalStateException("Executor service was interrupted while awaiting termination.");
-		}
-		
 		System.out.println("Terminated testing.");
 		
 		watch.stop();
