@@ -118,7 +118,7 @@ public class BufferedThreadSafeCacheDecorator<E,C extends ICacheEntry<E>> implem
 	}
 
 	@Override
-	public boolean contains(ICacheEntry<E> set) {
+	public boolean contains(C set) {
 		fLock.readLock().lock();
 		try
 		{

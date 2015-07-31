@@ -89,7 +89,7 @@ public class UBTree<E,C extends ICacheEntry<E>> implements IContainmentCache<E,C
 	}
 	
 	@Override
-	public boolean contains(ICacheEntry<E> set)
+	public boolean contains(C set)
 	{
 		ArrayList<E> S = getArray(set);
 		return contains(S,0,fRoot,set);

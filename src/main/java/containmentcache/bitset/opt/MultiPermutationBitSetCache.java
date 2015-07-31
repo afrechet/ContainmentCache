@@ -103,7 +103,7 @@ public class MultiPermutationBitSetCache<E, C extends ICacheEntry<E>> implements
     }
 
     @Override
-    public boolean contains(ICacheEntry<E> set) {
+    public boolean contains(C set) {
     	final BitSet bs = getBitSet(set);
         return entries.get(bs).contains(set);
     }
@@ -112,7 +112,6 @@ public class MultiPermutationBitSetCache<E, C extends ICacheEntry<E>> implements
     public Iterable<C> getSets() {
         return entries.values();
     }
-
 
     @Override
     public Iterable<C> getSubsets(ICacheEntry<E> set) {

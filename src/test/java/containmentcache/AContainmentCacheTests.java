@@ -33,7 +33,6 @@ import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import containmentcache.util.FileIOHelper;
 import containmentcache.util.PermutationUtils;
 import containmentcache.util.ProxyTimer;
 

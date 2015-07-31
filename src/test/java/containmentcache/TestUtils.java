@@ -16,13 +16,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import com.google.common.collect.Iterables;
-import containmentcache.bitset.simple.SimpleBitSetCache;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 import com.google.common.collect.BiMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 @Slf4j

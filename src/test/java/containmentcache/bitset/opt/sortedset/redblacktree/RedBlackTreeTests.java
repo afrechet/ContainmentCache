@@ -1,11 +1,12 @@
 package containmentcache.bitset.opt.sortedset.redblacktree;
 
-import containmentcache.bitset.opt.sortedset.ASortedSetTests;
-import containmentcache.bitset.opt.sortedset.ISortedSet;
-import org.junit.Test;
-
 import java.util.Comparator;
 import java.util.Random;
+
+import org.junit.Test;
+
+import containmentcache.bitset.opt.sortedset.ASortedSetTests;
+import containmentcache.bitset.opt.sortedset.ISortedSet;
 
 public class RedBlackTreeTests extends ASortedSetTests{
 

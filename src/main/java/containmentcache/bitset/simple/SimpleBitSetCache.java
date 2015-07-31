@@ -88,7 +88,7 @@ public class SimpleBitSetCache<E,C extends ICacheEntry<E>> implements IContainme
 	}
 
 	@Override
-	public boolean contains(ICacheEntry<E> set) {
+	public boolean contains(C set) {
 		final BitSet bs = getBitSet(set);		
 		if(entries.containsKey(bs))
 		{

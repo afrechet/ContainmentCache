@@ -73,7 +73,7 @@ public class ThreadSafeContainmentCacheDecorator<E,C extends ICacheEntry<E>> imp
 	}
 
 	@Override
-	public boolean contains(ICacheEntry<E> set) {
+	public boolean contains(C set) {
 		fLock.readLock().lock();
 		try
 		{

@@ -49,7 +49,7 @@ public interface IContainmentCache<E,C extends ICacheEntry<E>> {
 	 * @param set - set to check for presence in the cache.
 	 * @return true if and only if the given set is in the cache.
 	 */
-	public boolean contains(ICacheEntry<E> set);
+	public boolean contains(C set);
 	
 	/**
 	 * @param set - set for which to get all present subsets in the cache.
