@@ -10,7 +10,6 @@ import containmentcache.bitset.opt.MultiPermutationBitSetCache;
 import containmentcache.bitset.opt.sortedset.redblacktree.RedBlackTree;
 import containmentcache.util.PermutationUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,12 +24,11 @@ import java.util.stream.IntStream;
 @Slf4j
 public class KevinTest {
 
-    @Test
-    public void test() throws IOException {
+    public static void main(String[] args) throws IOException {
         // 1: read files from csv into ds
-        final String csvFile = "some/path";
-        final Set<Integer> universe = new HashSet<>();
+        final String csvFile = "/ubc/cs/research/arrow/satfc/satfc-scripts/analysis/problems.txt";
         final List<Set<Integer>> list = new ArrayList<>();
+        log.info("Parsing file " + csvFile);
         for (final String line : Files.readLines(new File(csvFile), Charset.defaultCharset())) {
             final Set<Integer> elements = Splitter.on(',').splitToList(line).stream().map(Integer::parseInt).collect(Collectors.toSet());
             list.add(elements);
@@ -39,8 +37,10 @@ public class KevinTest {
         final Random random = new Random();
         // TODO: test for convergence?
         final DS ds = new DS(IntStream.rangeClosed(1, 2173).boxed().collect(Collectors.toSet()));
+        log.info("Starting algorithm");
         while(!ds.isConverged()) {
             // sample
+            log.info("Sampling");
             final Set<Integer> sample = list.get(random.nextInt(list.size()));
             ds.checkSample(sample);
         }
@@ -69,12 +69,15 @@ public class KevinTest {
             SimpleCacheSet<Integer> cs = new SimpleCacheSet<>(sample, permutation);
             if (c.contains(cs)) {
                 counters.compute(cs.getBitSet(), (k, v) -> v + 1);
+                activityCount = 0;
             } else if (Iterables.isEmpty(c.getSupersets(cs))) { // No superset
                 c.add(cs);
                 counters.put(cs.getBitSet(), 1.0);
+                activityCount = 0;
             } else {
                 activityCount += 1;
             }
+            log.info("Activity count is " + activityCount);
         }
 
         public void checkSampleShapley(Set<Integer> sample) {
@@ -105,9 +108,11 @@ public class KevinTest {
         }
 
         public boolean isConverged() {
-            return activityCount > 1000;
+            return activityCount > 10000;
         }
 
     }
 
 }
+
+

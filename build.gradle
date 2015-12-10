@@ -1,5 +1,6 @@
 apply plugin: 'java'
 apply plugin: "maven"
+apply plugin: 'application'
 
 repositories {
     mavenLocal()
@@ -40,6 +41,9 @@ test {
      }
 }
 
+
+mainClassName = 'containmentcache.KevinTest'
+applicationDefaultJvmArgs = ['-Xms8g']
 
 //Publishing to EARG maven repo.
 
