@@ -146,7 +146,7 @@ public class KevinTest {
         }
 
         public boolean isConverged() {
-            return false;
+            return iterCount > 1000000;
         }
 
     }
