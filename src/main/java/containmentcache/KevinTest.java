@@ -40,7 +40,6 @@ public class KevinTest {
         log.info("Starting algorithm");
         while(!ds.isConverged()) {
             // sample
-            log.info("Sampling");
             final Set<Integer> sample = list.get(random.nextInt(list.size()));
             ds.checkSample(sample);
         }
@@ -49,17 +48,16 @@ public class KevinTest {
 
     public static class DS {
 
-        private final Set<Set<Integer>> sets;
         private final IContainmentCache<Integer, ICacheEntry<Integer>> c;
         private final ImmutableBiMap<Integer, Integer> permutation;
         private final Map<BitSet, Double> counters;
         private int activityCount;
+        private long iterCount;
 
         public DS(Set<Integer> universe) {
             permutation = PermutationUtils.makePermutation(universe);
             List<BiMap<Integer, Integer>> permutations = PermutationUtils.makeNPermutations(permutation, 1, 3);
             c = new MultiPermutationBitSetCache<>(permutation, permutations, RedBlackTree::new);
-            sets = new HashSet<>();
             counters = new HashMap<>();
             activityCount = 0;
         }
@@ -69,15 +67,16 @@ public class KevinTest {
             SimpleCacheSet<Integer> cs = new SimpleCacheSet<>(sample, permutation);
             if (c.contains(cs)) {
                 counters.compute(cs.getBitSet(), (k, v) -> v + 1);
-                activityCount = 0;
             } else if (Iterables.isEmpty(c.getSupersets(cs))) { // No superset
                 c.add(cs);
                 counters.put(cs.getBitSet(), 1.0);
-                activityCount = 0;
             } else {
-                activityCount += 1;
+                // Nothing to do
             }
-            log.info("Activity count is " + activityCount);
+            iterCount++;
+            if (iterCount % 500 == 0) {
+                log.info("Iter count is {} and activity count is {} and entropy is {}", iterCount, activityCount, calcEntropy());
+            }
         }
 
         public void checkSampleShapley(Set<Integer> sample) {
@@ -101,10 +100,14 @@ public class KevinTest {
         }
 
         public void done() {
+            final double entropy = calcEntropy();
+            log.info("Entropy :" + entropy);
+        }
+
+        private double calcEntropy() {
             final double total = counters.values().stream().mapToDouble(Double::doubleValue).sum();
             final Map<BitSet, Double> probabilities = counters.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue() / total));
-            final double entropy = probabilities.values().stream().mapToDouble(p -> p * DoubleMath.log2(1 / p)).sum();
-            log.info("Entropy :" + entropy);
+            return probabilities.values().stream().mapToDouble(p -> p * DoubleMath.log2(1 / p)).sum();
         }
 
         public boolean isConverged() {
