@@ -1,5 +1,6 @@
 package containmentcache;
 
+import java.util.BitSet;
 import java.util.Collection;
 
 /**
@@ -22,17 +23,17 @@ public interface IContainmentCache<E,C extends ICacheEntry<E>> {
 	/**
 	 * @return all the sets contained in the containment cache.
 	 */
-	public Iterable<C> getSets();
-	
+	Iterable<C> getSets();
+
 	/**
 	 * @param set - set to add to the cache.
 	 */
-	public void add(C set);
+	void add(C set);
 	
 	/**
 	 * @param sets - sets to add to the cache.
 	 */
-	public default void addAll(Collection<C> sets)
+	default void addAll(Collection<C> sets)
 	{
 		for(C set : sets)
 		{
@@ -43,43 +44,43 @@ public interface IContainmentCache<E,C extends ICacheEntry<E>> {
 	/**
 	 * @param set - set to remove from the cache.
 	 */
-	public void remove(C set);
+	void remove(C set);
 	
 	/**
 	 * @param set - set to check for presence in the cache.
 	 * @return true if and only if the given set is in the cache.
 	 */
-	public boolean contains(C set);
+	boolean contains(C set);
 	
 	/**
 	 * @param set - set for which to get all present subsets in the cache.
 	 * @return an iterable over every set currently in the cache that is a subset of the given set.
 	 */
-	public Iterable<C> getSubsets(ICacheEntry<E> set);
+	Iterable<C> getSubsets(ICacheEntry<E> set);
 	
 	/**
 	 * 
 	 * @param set - set for which to get the number of present subsets in the cache.
 	 * @return the number of subsets present in the cache for the given set.
 	 */
-	public int getNumberSubsets(ICacheEntry<E> set);
+	int getNumberSubsets(ICacheEntry<E> set);
 	
 	/**
 	 * @param set - set for which to get all present supersets in the cache.
 	 * @return an iterable over every set currently in the cache that is a superset of the given set.
 	 */
-	public Iterable<C> getSupersets(ICacheEntry<E> set);
+	Iterable<C> getSupersets(ICacheEntry<E> set);
 	
 	/**
 	 * 
 	 * @param set - set for which to get the number of present supersets in the cache.
 	 * @return the number of supersets present in the cache for the given set.
 	 */
-	public int getNumberSupersets(ICacheEntry<E> set);
+	int getNumberSupersets(ICacheEntry<E> set);
 	
 	/**
 	 * @return the number of entries currently in the cache.
 	 */
-	public int size();
+	int size();
 	
 }
