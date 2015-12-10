@@ -3,6 +3,13 @@ apply plugin: "maven"
 apply plugin: 'application'
 
 repositories {
+    //EARG maven repo.
+    maven {
+        url 'https://bitbucket.org/EARG-builder/maven-repo/raw/master/releases/'
+    }
+    maven {
+        url 'https://bitbucket.org/EARG-builder/maven-repo/raw/master/snapshots/'
+    }
     mavenLocal()
     mavenCentral()
 }
@@ -28,8 +35,11 @@ dependencies {
 	compile 'org.slf4j:slf4j-api:1.7.7'
 	compile 'org.projectlombok:lombok:1.14.8'
 	compile 'net.jcip:jcip-annotations:1.0'
-	
-	testCompile 'junit:junit:4.11'
+
+    compile 'com.beust:jcommander:1.35-patched'
+    compile 'ca.ubc.cs.beta:aeatk:2.08.01-development-de3ee6617d5c'
+
+    testCompile 'junit:junit:4.11'
 }
 
 test {

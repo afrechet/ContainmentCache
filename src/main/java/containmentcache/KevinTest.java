@@ -1,5 +1,9 @@
 package containmentcache;
 
+import ca.ubc.cs.beta.aeatk.misc.jcommander.JCommanderHelper;
+import ca.ubc.cs.beta.aeatk.misc.options.UsageTextField;
+import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
+import com.beust.jcommander.Parameter;
 import com.google.common.base.Splitter;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
@@ -24,24 +28,50 @@ import java.util.stream.IntStream;
 @Slf4j
 public class KevinTest {
 
+    public enum KevinTestType {
+        REGULAR, SHAPLEY
+    }
+
+    @UsageTextField(title="KevinTest",description=" ")
+    public static class KevinTestArgs extends AbstractOptions {
+
+        @Parameter(names = "-type")
+        public KevinTestType type = KevinTestType.REGULAR;
+
+    }
+
     public static void main(String[] args) throws IOException {
+        final KevinTestArgs kevinArgs = new KevinTestArgs();
+        JCommanderHelper.parseCheckingForHelpAndVersion(args, kevinArgs);
+
+
         // 1: read files from csv into ds
         final String csvFile = "/ubc/cs/research/arrow/satfc/satfc-scripts/analysis/problems.txt";
         final List<Set<Integer>> list = new ArrayList<>();
-        log.info("Parsing file " + csvFile);
+        log.info("Parsing file {}", csvFile);
         for (final String line : Files.readLines(new File(csvFile), Charset.defaultCharset())) {
             final Set<Integer> elements = Splitter.on(',').splitToList(line).stream().map(Integer::parseInt).collect(Collectors.toSet());
             list.add(elements);
         }
+        log.info("Done parsing file, {} entries", list.size());
+
         // 2: do the thing
         final Random random = new Random();
-        // TODO: test for convergence?
         final DS ds = new DS(IntStream.rangeClosed(1, 2173).boxed().collect(Collectors.toSet()));
         log.info("Starting algorithm");
         while(!ds.isConverged()) {
             // sample
             final Set<Integer> sample = list.get(random.nextInt(list.size()));
-            ds.checkSample(sample);
+            switch (kevinArgs.type) {
+                case REGULAR:
+                    ds.checkSample(sample);
+                    break;
+                case SHAPLEY:
+                    ds.checkSampleShapley(sample);
+                    break;
+                default:
+                    throw new IllegalStateException("AHHH");
+            }
         }
         ds.done();
     }
@@ -51,15 +81,14 @@ public class KevinTest {
         private final IContainmentCache<Integer, ICacheEntry<Integer>> c;
         private final ImmutableBiMap<Integer, Integer> permutation;
         private final Map<BitSet, Double> counters;
-        private int activityCount;
         private long iterCount;
+        private double previousEntropy;
 
         public DS(Set<Integer> universe) {
             permutation = PermutationUtils.makePermutation(universe);
             List<BiMap<Integer, Integer>> permutations = PermutationUtils.makeNPermutations(permutation, 1, 3);
             c = new MultiPermutationBitSetCache<>(permutation, permutations, RedBlackTree::new);
             counters = new HashMap<>();
-            activityCount = 0;
         }
 
         public void checkSample(Set<Integer> sample) {
@@ -73,9 +102,15 @@ public class KevinTest {
             } else {
                 // Nothing to do
             }
+            endOfIter();
+        }
+
+        private void endOfIter() {
             iterCount++;
-            if (iterCount % 500 == 0) {
-                log.info("Iter count is {} and activity count is {} and entropy is {}", iterCount, activityCount, calcEntropy());
+            if (iterCount % 2000 == 0) {
+                double newEntropy = calcEntropy();
+                log.info("Iter count is {} and entropy is {} and delta is {}", iterCount, newEntropy, Math.abs(newEntropy - previousEntropy));
+                previousEntropy = newEntropy;
             }
         }
 
@@ -95,8 +130,8 @@ public class KevinTest {
                     final int finalN = n;
                     counters.compute(b, (k, v) -> v == null ? (1.0/ finalN) : v + (1.0/ finalN));
                 }
-                activityCount += 1; // TODO: think about this...
             }
+            endOfIter();
         }
 
         public void done() {
@@ -111,7 +146,7 @@ public class KevinTest {
         }
 
         public boolean isConverged() {
-            return activityCount > 10000;
+            return false;
         }
 
     }
