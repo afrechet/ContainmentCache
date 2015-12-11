@@ -9,6 +9,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
+import com.google.common.io.LineProcessor;
 import com.google.common.math.DoubleMath;
 import containmentcache.bitset.opt.MultiPermutationBitSetCache;
 import containmentcache.bitset.opt.sortedset.redblacktree.RedBlackTree;
@@ -38,30 +39,61 @@ public class KevinTest {
         @Parameter(names = "-type")
         public KevinTestType type = KevinTestType.REGULAR;
 
+        @Parameter(names = "-filename")
+        public String filename;
+
+        @Parameter(names = "-universe-file")
+        public String universeFile;
+
+
     }
 
     public static void main(String[] args) throws IOException {
         final KevinTestArgs kevinArgs = new KevinTestArgs();
         JCommanderHelper.parseCheckingForHelpAndVersion(args, kevinArgs);
 
+        log.info("Loading universe file from {}", kevinArgs.universeFile);
+        final Set<Integer> universe = Files.readLines(new File(kevinArgs.universeFile), Charset.defaultCharset()).stream().map(Integer::parseInt).collect(Collectors.toSet());
+        final ImmutableBiMap<Integer, Integer> permutation = PermutationUtils.makePermutation(universe);
+        log.info("Done loading universe");
 
-        // 1: read files from csv into ds
-        final String csvFile = "/ubc/cs/research/arrow/satfc/satfc-scripts/analysis/problems.txt";
-        final List<Set<Integer>> list = new ArrayList<>();
+        // 1: read csv of all the sets
+        // TODO: storing this file in memory might be too big.
+        final String csvFile = kevinArgs.filename;
+        final List<SimpleCacheSet<Integer>> list = new ArrayList<>();
         log.info("Parsing file {}", csvFile);
-        for (final String line : Files.readLines(new File(csvFile), Charset.defaultCharset())) {
-            final Set<Integer> elements = Splitter.on(',').splitToList(line).stream().map(Integer::parseInt).collect(Collectors.toSet());
-            list.add(elements);
-        }
+        Files.readLines(new File(csvFile), Charset.defaultCharset(), new LineProcessor<List<SimpleCacheSet<Integer>>>() {
+
+            int i = 0;
+
+            @Override
+            public boolean processLine(String line) throws IOException {
+                Set<Integer> set = Splitter.on(',').splitToList(line).stream().map(Integer::parseInt).collect(Collectors.toSet());
+                list.add(new SimpleCacheSet<Integer>(set, permutation));
+                i++;
+                if (i % 10000 == 0) {
+                    log.info("On line {}", i);
+                }
+                return true;
+            }
+
+            @Override
+            public List<SimpleCacheSet<Integer>> getResult() {
+                return list;
+            }
+
+        });
+
         log.info("Done parsing file, {} entries", list.size());
 
         // 2: do the thing
+
         final Random random = new Random();
-        final DS ds = new DS(IntStream.rangeClosed(1, 2173).boxed().collect(Collectors.toSet()));
+        final DS ds = new DS(permutation);
         log.info("Starting algorithm");
         while(!ds.isConverged()) {
             // sample
-            final Set<Integer> sample = list.get(random.nextInt(list.size()));
+            final SimpleCacheSet<Integer> sample = list.get(random.nextInt(list.size()));
             switch (kevinArgs.type) {
                 case REGULAR:
                     ds.checkSample(sample);
@@ -84,16 +116,15 @@ public class KevinTest {
         private long iterCount;
         private double previousEntropy;
 
-        public DS(Set<Integer> universe) {
-            permutation = PermutationUtils.makePermutation(universe);
+        public DS(ImmutableBiMap<Integer, Integer> permutation) {
+            this.permutation = permutation;
             List<BiMap<Integer, Integer>> permutations = PermutationUtils.makeNPermutations(permutation, 1, 3);
             c = new MultiPermutationBitSetCache<>(permutation, permutations, RedBlackTree::new);
             counters = new HashMap<>();
         }
 
-        public void checkSample(Set<Integer> sample) {
+        public void checkSample(SimpleCacheSet<Integer> cs) {
             // exact match
-            SimpleCacheSet<Integer> cs = new SimpleCacheSet<>(sample, permutation);
             if (c.contains(cs)) {
                 counters.compute(cs.getBitSet(), (k, v) -> v + 1);
             } else if (Iterables.isEmpty(c.getSupersets(cs))) { // No superset
@@ -114,8 +145,7 @@ public class KevinTest {
             }
         }
 
-        public void checkSampleShapley(Set<Integer> sample) {
-            SimpleCacheSet<Integer> cs = new SimpleCacheSet<>(sample, permutation);
+        public void checkSampleShapley(SimpleCacheSet<Integer> cs) {
             Iterable<ICacheEntry<Integer>> supersets = c.getSupersets(cs);
             int n = 0;
             final List<BitSet> sets = new ArrayList<>();
