@@ -3,7 +3,9 @@ package containmentcache;
 import ca.ubc.cs.beta.aeatk.misc.jcommander.JCommanderHelper;
 import ca.ubc.cs.beta.aeatk.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
+import ca.ubc.cs.beta.aeatk.random.RandomUtil;
 import com.beust.jcommander.Parameter;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
@@ -33,11 +35,18 @@ public class KevinTest {
         REGULAR, SHAPLEY
     }
 
+    public enum KevinTestMethod {
+        DATA, UNIFORM_RANDOM, UNIFORM_FIXED_SIZE
+    }
+
     @UsageTextField(title="KevinTest",description=" ")
     public static class KevinTestArgs extends AbstractOptions {
 
         @Parameter(names = "-type")
         public KevinTestType type = KevinTestType.REGULAR;
+
+        @Parameter(names = "-method")
+        KevinTestMethod method = KevinTestMethod.DATA;
 
         @Parameter(names = "-filename")
         public String filename;
@@ -45,6 +54,96 @@ public class KevinTest {
         @Parameter(names = "-universe-file")
         public String universeFile;
 
+
+    }
+
+    public interface SetSampler {
+        SimpleCacheSet<Integer> sample();
+    }
+
+    public static class DataSampler implements SetSampler {
+
+        private final List<SimpleCacheSet<Integer>> list;
+        private final Random random = new Random();
+
+        public DataSampler(KevinTestArgs kevinArgs, ImmutableBiMap<Integer, Integer> permutation) throws IOException {
+            final String csvFile = kevinArgs.filename;
+            list = new ArrayList<>();
+            log.info("Parsing file {}", csvFile);
+            Files.readLines(new File(csvFile), Charset.defaultCharset(), new LineProcessor<List<SimpleCacheSet<Integer>>>() {
+
+                int i = 0;
+
+                @Override
+                public boolean processLine(String line) throws IOException {
+                    Set<Integer> set = Splitter.on(',').splitToList(line).stream().map(Integer::parseInt).collect(Collectors.toSet());
+                    list.add(new SimpleCacheSet<Integer>(set, permutation));
+                    i++;
+                    if (i % 10000 == 0) {
+                        log.info("On line {}", i);
+                    }
+                    return true;
+                }
+
+                @Override
+                public List<SimpleCacheSet<Integer>> getResult() {
+                    return list;
+                }
+
+            });
+
+            log.info("Done parsing file, {} entries", list.size());
+        }
+
+        @Override
+        public SimpleCacheSet<Integer> sample() {
+            return list.get(random.nextInt(list.size()));
+        }
+    }
+
+    public static class UniformSampler implements SetSampler {
+        private double p;
+        private final ImmutableBiMap<Integer, Integer> permutation;
+        private final Random random = new Random();
+
+        public UniformSampler(double p, ImmutableBiMap<Integer, Integer> permutation) {
+            this.p = p;
+            this.permutation = permutation;
+        }
+
+        @Override
+        public SimpleCacheSet<Integer> sample() {
+            final Set<Integer> set = new HashSet<>();
+            for (Integer element : permutation.keySet()) {
+                if (random.nextFloat() > p) {
+                    set.add(element);
+                }
+            }
+            return new SimpleCacheSet<>(set, permutation);
+        }
+    }
+
+    public static class FixedSizeSampler implements SetSampler {
+
+        private int size;
+        private final ImmutableBiMap<Integer, Integer> permutation;
+        private final Random random = new Random();
+        private final List<Integer> ordering;
+
+        public FixedSizeSampler(int size, ImmutableBiMap<Integer, Integer> permutation) {
+            this.size = size;
+            this.permutation = permutation;
+            ordering = new ArrayList<>(permutation.keySet());
+            Preconditions.checkArgument(size <= permutation.size());
+        }
+
+        @Override
+        public SimpleCacheSet<Integer> sample() {
+            final Set<Integer> set = new HashSet<>();
+            Collections.shuffle(ordering);
+            set.addAll(ordering.subList(0, size));
+            return new SimpleCacheSet<>(set, permutation);
+        }
 
     }
 
@@ -57,34 +156,16 @@ public class KevinTest {
         final ImmutableBiMap<Integer, Integer> permutation = PermutationUtils.makePermutation(universe);
         log.info("Done loading universe");
 
-        // 1: read csv of all the sets
-        // TODO: storing this file in memory might be too big.
-        final String csvFile = kevinArgs.filename;
-        final List<SimpleCacheSet<Integer>> list = new ArrayList<>();
-        log.info("Parsing file {}", csvFile);
-        Files.readLines(new File(csvFile), Charset.defaultCharset(), new LineProcessor<List<SimpleCacheSet<Integer>>>() {
-
-            int i = 0;
-
-            @Override
-            public boolean processLine(String line) throws IOException {
-                Set<Integer> set = Splitter.on(',').splitToList(line).stream().map(Integer::parseInt).collect(Collectors.toSet());
-                list.add(new SimpleCacheSet<Integer>(set, permutation));
-                i++;
-                if (i % 10000 == 0) {
-                    log.info("On line {}", i);
-                }
-                return true;
-            }
-
-            @Override
-            public List<SimpleCacheSet<Integer>> getResult() {
-                return list;
-            }
-
-        });
-
-        log.info("Done parsing file, {} entries", list.size());
+        final SetSampler sampler;
+        if (kevinArgs.method == KevinTestMethod.DATA) {
+            sampler = new DataSampler(kevinArgs, permutation);
+        } else if (kevinArgs.method == KevinTestMethod.UNIFORM_RANDOM) {
+            sampler = new UniformSampler(0.5, permutation);
+        } else if (kevinArgs.method == KevinTestMethod.UNIFORM_FIXED_SIZE) {
+            sampler = new FixedSizeSampler(permutation.size() / 2, permutation);
+        } else {
+            throw new IllegalStateException("No sampler defined for type " + kevinArgs.method);
+        }
 
         // 2: do the thing
 
@@ -93,7 +174,7 @@ public class KevinTest {
         log.info("Starting algorithm");
         while(!ds.isConverged()) {
             // sample
-            final SimpleCacheSet<Integer> sample = list.get(random.nextInt(list.size()));
+            final SimpleCacheSet<Integer> sample = sampler.sample();
             switch (kevinArgs.type) {
                 case REGULAR:
                     ds.checkSample(sample);
@@ -102,7 +183,7 @@ public class KevinTest {
                     ds.checkSampleShapley(sample);
                     break;
                 default:
-                    throw new IllegalStateException("AHHH");
+                    throw new IllegalStateException("Did not understand algorithm " + kevinArgs.type);
             }
         }
         ds.done();

@@ -53,7 +53,7 @@ test {
 
 
 mainClassName = 'containmentcache.KevinTest'
-applicationDefaultJvmArgs = ['-Xms16g', '-Xmx 24g']
+applicationDefaultJvmArgs = ['-Xms16g', '-Xmx24g']
 
 //Publishing to EARG maven repo.
 
