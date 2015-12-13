@@ -25,6 +25,10 @@ group = 'ca.ubc.cs.beta'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
+ext {
+    jacksonVersion = "2.6.1"
+}
+
 dependencies {
 	compile 'com.google.guava:guava:18.0'
 	compile 'org.apache.commons:commons-collections4:4.0'
@@ -40,6 +44,14 @@ dependencies {
     compile 'ca.ubc.cs.beta:aeatk:2.08.01-development-de3ee6617d5c'
 
     testCompile 'junit:junit:4.11'
+
+    // json
+    compile "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion"
+    compile "com.fasterxml.jackson.core:jackson-core:$jacksonVersion"
+    compile "com.fasterxml.jackson.core:jackson-annotations:$jacksonVersion"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-guava:$jacksonVersion"
+    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion"
+
 }
 
 test {

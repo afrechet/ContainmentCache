@@ -5,6 +5,8 @@ import ca.ubc.cs.beta.aeatk.misc.options.UsageTextField;
 import ca.ubc.cs.beta.aeatk.options.AbstractOptions;
 import ca.ubc.cs.beta.aeatk.random.RandomUtil;
 import com.beust.jcommander.Parameter;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.BiMap;
@@ -15,6 +17,7 @@ import com.google.common.io.LineProcessor;
 import com.google.common.math.DoubleMath;
 import containmentcache.bitset.opt.MultiPermutationBitSetCache;
 import containmentcache.bitset.opt.sortedset.redblacktree.RedBlackTree;
+import containmentcache.util.JSONUtils;
 import containmentcache.util.PermutationUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -36,14 +39,14 @@ public class KevinTest {
     }
 
     public enum KevinTestMethod {
-        DATA, UNIFORM_RANDOM, UNIFORM_FIXED_SIZE
+        DATA, UNIFORM_RANDOM, UNIFORM_FIXED_SIZE, CDF_MATCHING
     }
 
     @UsageTextField(title="KevinTest",description=" ")
     public static class KevinTestArgs extends AbstractOptions {
 
         @Parameter(names = "-type")
-        public KevinTestType type = KevinTestType.REGULAR;
+        public KevinTestType type = KevinTestType.SHAPLEY;
 
         @Parameter(names = "-method")
         KevinTestMethod method = KevinTestMethod.DATA;
@@ -54,6 +57,8 @@ public class KevinTest {
         @Parameter(names = "-universe-file")
         public String universeFile;
 
+        @Parameter(names = "-cdf-file")
+        public String cdfFile;
 
     }
 
@@ -127,7 +132,6 @@ public class KevinTest {
 
         private int size;
         private final ImmutableBiMap<Integer, Integer> permutation;
-        private final Random random = new Random();
         private final List<Integer> ordering;
 
         public FixedSizeSampler(int size, ImmutableBiMap<Integer, Integer> permutation) {
@@ -147,6 +151,67 @@ public class KevinTest {
 
     }
 
+    public static class WeightedCollection<E> {
+
+        private final NavigableMap<Double, E> map = new TreeMap<>();
+        private final Random random;
+        private double total = 0;
+
+        public WeightedCollection() {
+            this(new Random());
+        }
+
+        public WeightedCollection(Random random) {
+            this.random = random;
+        }
+
+        /**
+         * Accumulate total weight
+         * Map current total weight to current object
+         * @param weight weight of current object
+         * @param object object to be added to map
+         */
+        public void add(double weight, E object) {
+            if (weight <= 0) return;
+            total += weight;
+            map.put(total, object);
+        }
+
+        /**
+         * Random: generate a random number range [0, total] inclusisve
+         * Weighted: object contributed higher weight in method, add(double weight, E object), has a higher chance of being selected
+         * @return weighted random selection object
+         */
+        public E next() {
+            double value = random.nextDouble() * total;
+            return map.ceilingEntry(value).getValue();
+        }
+    }
+
+    public static class CDFMatchingSampler implements SetSampler {
+
+        private final ImmutableBiMap<Integer, Integer> permutation;
+        private final WeightedCollection<Integer> weights;
+
+        public CDFMatchingSampler(String countFile, ImmutableBiMap<Integer, Integer> permutation) throws IOException {
+            this.permutation = permutation;
+            final String json = Files.toString(new File(countFile), Charsets.UTF_8);
+            final Map<Integer, Integer> weightMap = JSONUtils.getMapper().readValue(json, new TypeReference<Map<Integer, Integer>>(){});
+            weights = new WeightedCollection<>();
+            for (Map.Entry<Integer, Integer> entry : weightMap.entrySet()) {
+                weights.add(entry.getValue(), entry.getKey());
+            }
+        }
+
+        @Override
+        public SimpleCacheSet<Integer> sample() {
+            final int size = weights.next();
+            return new FixedSizeSampler(size, permutation).sample();
+        }
+
+    }
+
+
     public static void main(String[] args) throws IOException {
         final KevinTestArgs kevinArgs = new KevinTestArgs();
         JCommanderHelper.parseCheckingForHelpAndVersion(args, kevinArgs);
@@ -157,19 +222,26 @@ public class KevinTest {
         log.info("Done loading universe");
 
         final SetSampler sampler;
-        if (kevinArgs.method == KevinTestMethod.DATA) {
-            sampler = new DataSampler(kevinArgs, permutation);
-        } else if (kevinArgs.method == KevinTestMethod.UNIFORM_RANDOM) {
-            sampler = new UniformSampler(0.5, permutation);
-        } else if (kevinArgs.method == KevinTestMethod.UNIFORM_FIXED_SIZE) {
-            sampler = new FixedSizeSampler(permutation.size() / 2, permutation);
-        } else {
-            throw new IllegalStateException("No sampler defined for type " + kevinArgs.method);
+        log.info("Using a {} sampler", kevinArgs.method);
+        switch (kevinArgs.method) {
+            case DATA:
+                sampler = new DataSampler(kevinArgs, permutation);
+                break;
+            case UNIFORM_RANDOM:
+                sampler = new UniformSampler(0.5, permutation);
+                break;
+            case UNIFORM_FIXED_SIZE:
+                sampler = new FixedSizeSampler(permutation.size() / 2, permutation);
+                break;
+            case CDF_MATCHING:
+                sampler = new CDFMatchingSampler(kevinArgs.cdfFile ,permutation);
+                break;
+            default:
+                throw new IllegalStateException("No sampler defined for type " + kevinArgs.method);
         }
 
         // 2: do the thing
 
-        final Random random = new Random();
         final DS ds = new DS(permutation);
         log.info("Starting algorithm");
         while(!ds.isConverged()) {
@@ -192,13 +264,11 @@ public class KevinTest {
     public static class DS {
 
         private final IContainmentCache<Integer, ICacheEntry<Integer>> c;
-        private final ImmutableBiMap<Integer, Integer> permutation;
         private final Map<BitSet, Double> counters;
         private long iterCount;
         private double previousEntropy;
 
         public DS(ImmutableBiMap<Integer, Integer> permutation) {
-            this.permutation = permutation;
             List<BiMap<Integer, Integer>> permutations = PermutationUtils.makeNPermutations(permutation, 1, 3);
             c = new MultiPermutationBitSetCache<>(permutation, permutations, RedBlackTree::new);
             counters = new HashMap<>();
