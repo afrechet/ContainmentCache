@@ -243,7 +243,7 @@ public class KevinTest {
         // 2: do the thing
 
         final DS ds = new DS(permutation);
-        log.info("Starting algorithm");
+        log.info("Starting algorithm {}", kevinArgs.type);
         while(!ds.isConverged()) {
             // sample
             final SimpleCacheSet<Integer> sample = sampler.sample();
@@ -306,11 +306,12 @@ public class KevinTest {
             }
             if (n == 0) {
                 c.add(cs);
-            } else {
-                for (BitSet b : sets) {
-                    final int finalN = n;
-                    counters.compute(b, (k, v) -> v == null ? (1.0/ finalN) : v + (1.0/ finalN));
-                }
+                n = 1;
+                sets.add(cs.getBitSet());
+            }
+            for (BitSet b : sets) {
+                final int finalN = n;
+                counters.compute(b, (k, v) -> v == null ? (1.0/ finalN) : v + (1.0/ finalN));
             }
             endOfIter();
         }
