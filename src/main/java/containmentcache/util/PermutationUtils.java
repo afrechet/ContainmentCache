@@ -5,17 +5,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 
 public class PermutationUtils {
 	
-	public static <E> ImmutableBiMap<E, Integer> makePermutation(Set<E> elements) {
+	public static <E extends Comparable<E>> ImmutableBiMap<E, Integer> makePermutation(Set<E> elements) {
         // Create the canonical permutation for this bundle
         final ImmutableBiMap.Builder<E, Integer> builder = ImmutableBiMap.builder();
         int index = 0;
-        for (E station : elements) {
+        final List<E> sorted = elements.stream().sorted().collect(Collectors.toList());
+        for (E station : sorted) {
             builder.put(station, index++);
         }
         return builder.build();

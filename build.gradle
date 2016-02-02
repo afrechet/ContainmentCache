@@ -11,7 +11,7 @@ task wrapper(type: Wrapper) {
 }
 
 //Project properties.
-version = '0.9.2'
+version = '0.9.3'
 group = 'ca.ubc.cs.beta'
 
 sourceCompatibility = 1.8
